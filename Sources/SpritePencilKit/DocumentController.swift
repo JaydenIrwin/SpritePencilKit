@@ -1,0 +1,398 @@
+//
+//  DocumentController.swift
+//  Sprite Pencil
+//
+//  Created by Jayden Irwin on 2018-10-15.
+//  Copyright © 2018 Jayden Irwin. All rights reserved.
+//
+
+import UIKit
+
+protocol ToolDelegate: class {
+    func selectTool(atIndex index: Int, animated: Bool)
+}
+protocol EditorDelegate: class {
+    func eyedropColor(colorComponents components: ColorComponents, at point: PixelPoint)
+    func refreshUndo()
+}
+protocol RecentColorDelegate: class {
+    func usedColor(_ color: UIColor)
+}
+protocol PaintParticlesDelegate: class {
+    func painted(context: CGContext, color: UIColor, at point: PixelPoint)
+}
+
+class DocumentController {
+    
+    enum RotateDirection {
+        case left, right
+    }
+    
+    var context: CGContext! {
+        didSet {
+            let widthMultiple = ContextDataManager.contextWidthMultiple
+            let rowOffset = ((context.width + widthMultiple - 1) / widthMultiple) * widthMultiple // Round up to multiple of 8
+            let dataPointer: UnsafeMutablePointer<UInt8> = {
+                let capacity = self.context.width * context.height
+                let pointer = self.context.data!.bindMemory(to: UInt8.self, capacity: capacity)
+                return pointer
+            }()
+            contextDataManager = ContextDataManager(rowOffset: rowOffset, dataPointer: dataPointer)
+        }
+    }
+    var toolColor = UIColor.white
+    var currentOperationPixelPoints = [PixelPoint]() //Should be "Set<>" for sprite pencil
+    var fillFromColor: UIColor?
+    var fillFromColorComponents: ColorComponents?
+    var contextDataManager: ContextDataManager!
+    
+    // Tools
+    var pencilTool = PencilTool(width: 1)
+    var eraserTool = EraserTool(width: 1)
+    var eyedroperTool = EyedroperTool()
+    var fillTool = FillTool()
+    var moveTool = MoveTool()
+    var highlightTool = HighlightTool(width: 1)
+    var shadowTool = ShadowTool(width: 1)
+    var previousTool: Tool = EraserTool(width: 1)
+    var tool: Tool = PencilTool(width: 1) {
+        didSet {
+            if type(of: tool) != type(of: oldValue) {
+                UISelectionFeedbackGenerator().selectionChanged()
+                previousTool = oldValue
+            }
+            let index: Int
+            switch tool {
+            case is PencilTool:
+                index = 0
+            case is EraserTool:
+                index = 1
+            case is EyedroperTool:
+                index = 2
+            case is FillTool:
+                index = 3
+            case is MoveTool:
+                index = 4
+            case is HighlightTool:
+                index = 5
+            case is ShadowTool:
+                index = 6
+            default:
+                index = 0
+            }
+            let animated = type(of: tool) != type(of: oldValue)
+            toolDelegate?.selectTool(atIndex: index, animated: animated)
+        }
+    }
+    
+    // Delegates
+    weak var undoManager: UndoManager?
+    weak var recentColorDelegate: RecentColorDelegate?
+    weak var toolDelegate: ToolDelegate?
+    weak var editorDelegate: EditorDelegate?
+    weak var canvasView: CanvasView!
+    
+    init(undoManager: UndoManager?, canvasView: CanvasView) {
+        self.undoManager = undoManager
+        self.canvasView = canvasView
+    }
+    
+    func refresh() {
+        canvasView.canvasDelegate?.canvasViewDrawingDidChange(canvasView)
+        let image = UIGraphicsGetImageFromCurrentImageContext()
+        canvasView.spriteView.image = image
+        canvasView.canvasDelegate?.canvasViewDidFinishRendering(canvasView)
+        editorDelegate?.refreshUndo()
+    }
+    
+    func paint(color: UIColor, at point: PixelPoint, size: CGSize, byUser: Bool) {
+        let pointInBounds: PixelPoint
+        let sizeInBounds: CGSize
+        if byUser {
+            if size == CGSize(width: 1, height: 1) {
+                guard point.x < context.width, point.y < context.height, 0 <= point.x, 0 <= point.y else { return }
+                pointInBounds = point
+                sizeInBounds = size
+            } else {
+                guard point.x < context.width, point.y < context.height, 0 <= point.x + Int(size.width)-1, 0 <= point.y + Int(size.height)-1 else { return }
+                pointInBounds = PixelPoint(x: max(0, point.x), y: max(0, point.y))
+                let newWidth = min(size.width - CGFloat(pointInBounds.x - point.x), CGFloat(context.width - pointInBounds.x))
+                let newHeight = min(size.height - CGFloat(pointInBounds.y - point.y), CGFloat(context.height - pointInBounds.y))
+                sizeInBounds = CGSize(width: newWidth, height: newHeight)
+            }
+        } else {
+            pointInBounds = point
+            sizeInBounds = size
+        }
+        
+        for xOffset in 0..<Int(sizeInBounds.width) {
+            for yOffset in 0..<Int(sizeInBounds.height) {
+                let brushPoint = PixelPoint(x: pointInBounds.x + xOffset, y: pointInBounds.y + yOffset)
+                let undoColor = UIColor(components: getColorComponents(at: brushPoint))
+                undoManager?.registerUndo(withTarget: self, handler: { (target) in
+                    target.paint(color: undoColor, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: false)
+                })
+                currentOperationPixelPoints.append(brushPoint)
+            }
+        }
+        color.setFill()
+        if byUser, color != UIColor.clear {
+            recentColorDelegate?.usedColor(color)
+        }
+        UIRectFill(CGRect(origin: CGPoint(x: pointInBounds.x, y: pointInBounds.y), size: sizeInBounds))
+    }
+    
+    func fillPath() {
+        guard 7 <= currentOperationPixelPoints.count else { return }
+        let firstPixelPoint = currentOperationPixelPoints.removeFirst()
+        guard abs(firstPixelPoint.x - currentOperationPixelPoints.last!.x) <= 1, abs(firstPixelPoint.y - currentOperationPixelPoints.last!.y) <= 1 else { return }
+        let image = UIGraphicsGetImageFromCurrentImageContext()
+        context.beginPath()
+        context.move(to: CGPoint(x: CGFloat(firstPixelPoint.x) + 0.5, y: CGFloat(firstPixelPoint.y) + 0.5))
+        for pixelPoint in currentOperationPixelPoints {
+            context.addLine(to: CGPoint(x: CGFloat(pixelPoint.x) + 0.5, y: CGFloat(pixelPoint.y) + 0.5))
+        }
+        context.closePath()
+        context.fillPath()
+        undoManager?.registerUndo(withTarget: self, handler: { (target) in
+            target.context.clear()
+            image?.draw(at: .zero)
+        })
+    }
+    
+    func eyedrop(at point: PixelPoint) {
+        let components = getColorComponents(at: point)
+        guard components.alpha == 255 else { return }
+        
+        editorDelegate?.eyedropColor(colorComponents: components, at: point)
+    }
+    
+    func getColorComponents(at point: PixelPoint) -> ColorComponents {
+        let cdp = contextDataManager.dataPointer
+        let offset = contextDataManager.dataOffset(for: point)
+        return ColorComponents(red: cdp[offset+2], green: cdp[offset+1], blue: cdp[offset], alpha: cdp[offset+3])
+    }
+    
+    func move(dx: CGFloat, dy: CGFloat) {
+        context.clear()
+        let newOrigin = CGPoint(x: dx, y: dy)
+        canvasView.spriteCopy.draw(at: newOrigin)
+        
+        undoManager?.registerUndo(withTarget: self) { (target) in
+            target.move(dx: -dx, dy: -dy)
+        }
+    }
+    
+    func highlight(at point: PixelPoint, size: CGSize) {
+        for xOffset in 0..<Int(size.width) {
+            for yOffset in 0..<Int(size.height) {
+                let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
+                guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
+                let highlightColor = (Palette.current ?? Palette(name: "RRGGBB")).highlight(forColorComponents: getColorComponents(at: brushPoint))
+                paint(color: highlightColor, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
+            }
+        }
+    }
+    
+    func shadow(at point: PixelPoint, size: CGSize) {
+        for xOffset in 0..<Int(size.width) {
+            for yOffset in 0..<Int(size.height) {
+                let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
+                guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
+                let shadowColor = (Palette.current ?? Palette(name: "RRGGBB")).shadow(forColorComponents: getColorComponents(at: brushPoint))
+                paint(color: shadowColor, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
+            }
+        }
+    }
+    
+    func fill(at startPoint: PixelPoint) {
+        fillFromColorComponents = getColorComponents(at: startPoint)
+        let fillFrom = UIColor(components: fillFromColorComponents!)
+        fillFromColor = fillFrom
+        guard fillFromColor != toolColor else { return }
+        
+        toolColor.setFill()
+        undoManager?.registerUndo(withTarget: self, handler: { (target) in
+            target.toolColor.setFill()
+            target.refresh()
+            target.currentOperationPixelPoints.removeAll()
+        })
+        
+        let toolSize = CGSize(width: 1, height: 1)
+        var stack = [startPoint]
+        while 0 < stack.count {
+            let pixelPoint = stack.popLast()!
+            if currentOperationPixelPoints.contains(pixelPoint) || (pixelPoint.y < 0 || pixelPoint.y > context.height - 1 || pixelPoint.x < 0 || pixelPoint.x > context.width - 1) {
+                continue
+            }
+            guard getColorComponents(at: pixelPoint) == fillFromColorComponents else { continue }
+
+            let point = CGPoint(x: pixelPoint.x, y: pixelPoint.y)
+            UIRectFill(CGRect(origin: point, size: toolSize))
+            undoManager?.registerUndo(withTarget: self, handler: { (target) in
+                UIRectFill(CGRect(origin: point, size: toolSize))
+            })
+            
+            currentOperationPixelPoints.append(pixelPoint)
+            
+            stack.append(PixelPoint(x: pixelPoint.x+1, y: pixelPoint.y))
+            stack.append(PixelPoint(x: pixelPoint.x-1, y: pixelPoint.y))
+            stack.append(PixelPoint(x: pixelPoint.x, y: pixelPoint.y+1))
+            stack.append(PixelPoint(x: pixelPoint.x, y: pixelPoint.y-1))
+        }
+        
+        undoManager?.registerUndo(withTarget: self, handler: { (target) in
+            fillFrom.setFill()
+        })
+        refresh()
+    }
+    
+    func flip(vertically: Bool) {
+        let image = UIGraphicsGetImageFromCurrentImageContext()
+        context.clear()
+        context.saveGState()
+        let number: CGFloat = vertically ? 1.0 : -1.0
+        let tx = vertically ? 0.0 : CGFloat(context.width)
+        let ty = vertically ? CGFloat(context.height) : 0.0
+        let flipVertical = CGAffineTransform(a: number, b: 0.0, c: 0.0, d: -number, tx: tx, ty: ty)
+        context.concatenate(flipVertical)
+        image?.draw(at: .zero)
+        context.restoreGState()
+        
+        undoManager?.registerUndo(withTarget: self) { (target) in
+            target.flip(vertically: vertically)
+            target.refresh()
+        }
+        refresh()
+    }
+    
+    func rotate(to direction: RotateDirection) {
+        let image = UIGraphicsGetImageFromCurrentImageContext()
+        context.saveGState()
+        context.clear()
+        context.translateBy(x: CGFloat(context.width)/2.0, y: CGFloat(context.height)/2.0)
+        context.rotate(by: CGFloat.pi / (direction == .right ? 2.0 : -2.0))
+        image?.draw(at: CGPoint(x: -context.width/2, y: -context.height/2))
+        context.restoreGState()
+        
+        undoManager?.registerUndo(withTarget: self) { (target) in
+            target.rotate(to: .left)
+            target.refresh()
+        }
+        refresh()
+    }
+    
+    func outline(color: UIColor? = nil) {
+        var outline = [(point: PixelPoint, colorComponents: ColorComponents)]()
+        for y in 0..<context.height {
+            for x in 0..<context.width {
+                let point = PixelPoint(x: x, y: y)
+                let alpha = getColorComponents(at: point).alpha
+                if alpha == 0 {
+                    // Check if a neighbor has a color
+                    let componentsAbove = getColorComponents(at: PixelPoint(x: x, y: y+1))
+                    if y+1 < context.height, componentsAbove.alpha != 0 {
+                        outline.append((point, componentsAbove))
+                        continue
+                    }
+                    let componentsRight = getColorComponents(at: PixelPoint(x: x+1, y: y))
+                    if x+1 < context.width, componentsRight.alpha != 0 {
+                        outline.append((point, componentsRight))
+                        continue
+                    }
+                    let componentsBelow = getColorComponents(at: PixelPoint(x: x, y: y-1))
+                    if 0 <= y-1, componentsBelow.alpha != 0 {
+                        outline.append((point, componentsBelow))
+                        continue
+                    }
+                    let componentsLeft = getColorComponents(at: PixelPoint(x: x-1, y: y))
+                    if 0 <= x-1, componentsLeft.alpha != 0 {
+                        outline.append((point, componentsLeft))
+                        continue
+                    }
+                }
+            }
+        }
+        undoManager?.beginUndoGrouping()
+        if let color = color {
+            for point in outline {
+                paint(color: color, at: point.point, size: CGSize(width: 1, height: 1), byUser: false)
+            }
+        } else {
+            // Automatic color
+            for point in outline {
+                let shadowColor = (Palette.current ?? Palette(name: "RRGGBB")).shadow(forColorComponents: point.colorComponents)
+                paint(color: shadowColor, at: point.point, size: CGSize(width: 1, height: 1), byUser: false)
+            }
+        }
+        undoManager?.endUndoGrouping()
+        currentOperationPixelPoints.removeAll()
+        refresh()
+    }
+    
+    func trimCanvas() {
+        guard let image = UIGraphicsGetImageFromCurrentImageContext() else { return }
+        var top: Int?
+        findTop: for y in 0..<Int(image.size.height) {
+            for x in 0..<Int(image.size.width) {
+                let point = PixelPoint(x: x, y: y)
+                if getColorComponents(at: point).alpha != 0 {
+                    top = y
+                    break findTop
+                }
+            }
+        }
+        guard top != nil else { return }
+        var bottom = 0
+        findBottom: for y in stride(from: Int(image.size.height), to: 0, by: -1) {
+            for x in 0..<Int(image.size.width) {
+                let point = PixelPoint(x: x, y: y)
+                if getColorComponents(at: point).alpha != 0 {
+                    bottom = y
+                    break findBottom
+                }
+            }
+        }
+        var left = 0
+        findLeft: for x in 0..<Int(image.size.width) {
+            for y in top!..<bottom {
+                let point = PixelPoint(x: x, y: y)
+                if getColorComponents(at: point).alpha != 0 {
+                    left = y
+                    break findLeft
+                }
+            }
+        }
+        var right = 0
+        findRight: for x in stride(from: Int(image.size.width), to: 0, by: -1) {
+            for y in top!..<bottom {
+                let point = PixelPoint(x: x, y: y)
+                if getColorComponents(at: point).alpha != 0 {
+                    right = y
+                    break findRight
+                }
+            }
+        }
+        let trimRect = CGRect(x: left, y: top!, width: right-left, height: bottom-top!)
+        UIGraphicsEndImageContext()
+        UIGraphicsBeginImageContext(trimRect.size)
+        image.draw(at: trimRect.origin)
+        context = UIGraphicsGetCurrentContext()
+    }
+    
+    func export(atScale scale: CGFloat) -> UIImage? {
+        guard let image = UIGraphicsGetImageFromCurrentImageContext() else { return nil }
+        if scale == 1.0 { return image }
+        
+        let scaledImageSize = image.size.applying(CGAffineTransform(scaleX: scale, y: scale))
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: scaledImageSize, format: format)
+        let scaledImage = renderer.image { (context) in
+            context.cgContext.interpolationQuality = .none
+            image.draw(in: CGRect(origin: .zero, size: scaledImageSize))
+        }
+        return scaledImage
+    }
+    
+}
