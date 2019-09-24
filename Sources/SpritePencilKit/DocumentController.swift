@@ -40,7 +40,7 @@ class DocumentController {
             contextDataManager = ContextDataManager(rowOffset: rowOffset, dataPointer: dataPointer)
         }
     }
-    var palette: Palette? = Palette(name: paletteNames.first!)
+    var palette: Palette?
     var toolColor = UIColor.white
     var currentOperationPixelPoints = [PixelPoint]()
     var fillFromColor: UIColor?
