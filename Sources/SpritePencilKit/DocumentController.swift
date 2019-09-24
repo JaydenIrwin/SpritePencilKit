@@ -40,8 +40,9 @@ class DocumentController {
             contextDataManager = ContextDataManager(rowOffset: rowOffset, dataPointer: dataPointer)
         }
     }
+    var palette: Palette? = Palette(name: paletteNames.first!)
     var toolColor = UIColor.white
-    var currentOperationPixelPoints = [PixelPoint]() //Should be "Set<>" for sprite pencil
+    var currentOperationPixelPoints = [PixelPoint]()
     var fillFromColor: UIColor?
     var fillFromColorComponents: ColorComponents?
     var contextDataManager: ContextDataManager!
@@ -63,22 +64,30 @@ class DocumentController {
             }
             let index: Int
             switch tool {
-            case is PencilTool:
+            case let pencil as PencilTool:
                 index = 0
-            case is EraserTool:
+                canvasView.toolSizeChanged(size: pencil.size)
+            case let eraser as EraserTool:
                 index = 1
+                canvasView.toolSizeChanged(size: eraser.size)
             case is EyedroperTool:
                 index = 2
+                canvasView.toolSizeChanged(size: CGSize(width: 1, height: 1))
             case is FillTool:
                 index = 3
+                canvasView.toolSizeChanged(size: CGSize(width: 1, height: 1))
             case is MoveTool:
                 index = 4
-            case is HighlightTool:
+                canvasView.toolSizeChanged(size: CGSize(width: 1, height: 1))
+            case let highlight as HighlightTool:
                 index = 5
-            case is ShadowTool:
+                canvasView.toolSizeChanged(size: highlight.size)
+            case let shadow as ShadowTool:
                 index = 6
+                canvasView.toolSizeChanged(size: shadow.size)
             default:
                 index = 0
+                canvasView.toolSizeChanged(size: CGSize(width: 1, height: 1))
             }
             let animated = type(of: tool) != type(of: oldValue)
             toolDelegate?.selectTool(atIndex: index, animated: animated)
@@ -99,7 +108,7 @@ class DocumentController {
     
     func refresh() {
         canvasView.canvasDelegate?.canvasViewDrawingDidChange(canvasView)
-        let image = UIGraphicsGetImageFromCurrentImageContext()
+        let image = UIImage(cgImage: context.makeImage()!)
         canvasView.spriteView.image = image
         canvasView.canvasDelegate?.canvasViewDidFinishRendering(canvasView)
         editorDelegate?.refreshUndo()
@@ -139,14 +148,14 @@ class DocumentController {
         if byUser, color != UIColor.clear {
             recentColorDelegate?.usedColor(color)
         }
-        UIRectFill(CGRect(origin: CGPoint(x: pointInBounds.x, y: pointInBounds.y), size: sizeInBounds))
+        context.fill(CGRect(origin: CGPoint(x: pointInBounds.x, y: pointInBounds.y), size: sizeInBounds))
     }
     
     func fillPath() {
         guard 7 <= currentOperationPixelPoints.count else { return }
         let firstPixelPoint = currentOperationPixelPoints.removeFirst()
         guard abs(firstPixelPoint.x - currentOperationPixelPoints.last!.x) <= 1, abs(firstPixelPoint.y - currentOperationPixelPoints.last!.y) <= 1 else { return }
-        let image = UIGraphicsGetImageFromCurrentImageContext()
+        let image = context.makeImage()!
         context.beginPath()
         context.move(to: CGPoint(x: CGFloat(firstPixelPoint.x) + 0.5, y: CGFloat(firstPixelPoint.y) + 0.5))
         for pixelPoint in currentOperationPixelPoints {
@@ -156,7 +165,7 @@ class DocumentController {
         context.fillPath()
         undoManager?.registerUndo(withTarget: self, handler: { (target) in
             target.context.clear()
-            image?.draw(at: .zero)
+            self.context.draw(image, in: CGRect(origin: .zero, size: CGSize(width: self.context.width, height: self.context.height)))
         })
     }
     
@@ -188,7 +197,7 @@ class DocumentController {
             for yOffset in 0..<Int(size.height) {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
-                let highlightColor = (Palette.current ?? Palette(name: "RRGGBB")).highlight(forColorComponents: getColorComponents(at: brushPoint))
+                let highlightColor = (palette ?? Palette(name: "RRGGBB")).highlight(forColorComponents: getColorComponents(at: brushPoint))
                 paint(color: highlightColor, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
             }
         }
@@ -199,7 +208,7 @@ class DocumentController {
             for yOffset in 0..<Int(size.height) {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
-                let shadowColor = (Palette.current ?? Palette(name: "RRGGBB")).shadow(forColorComponents: getColorComponents(at: brushPoint))
+                let shadowColor = (palette ?? Palette(name: "RRGGBB")).shadow(forColorComponents: getColorComponents(at: brushPoint))
                 paint(color: shadowColor, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
             }
         }
@@ -248,7 +257,7 @@ class DocumentController {
     }
     
     func flip(vertically: Bool) {
-        let image = UIGraphicsGetImageFromCurrentImageContext()
+        let image = context.makeImage()!
         context.clear()
         context.saveGState()
         let number: CGFloat = vertically ? 1.0 : -1.0
@@ -256,7 +265,7 @@ class DocumentController {
         let ty = vertically ? CGFloat(context.height) : 0.0
         let flipVertical = CGAffineTransform(a: number, b: 0.0, c: 0.0, d: -number, tx: tx, ty: ty)
         context.concatenate(flipVertical)
-        image?.draw(at: .zero)
+        context.draw(image, in: CGRect(origin: .zero, size: CGSize(width: context.width, height: context.height)))
         context.restoreGState()
         
         undoManager?.registerUndo(withTarget: self) { (target) in
@@ -267,12 +276,12 @@ class DocumentController {
     }
     
     func rotate(to direction: RotateDirection) {
-        let image = UIGraphicsGetImageFromCurrentImageContext()
+        let image = context.makeImage()!
         context.saveGState()
         context.clear()
         context.translateBy(x: CGFloat(context.width)/2.0, y: CGFloat(context.height)/2.0)
         context.rotate(by: CGFloat.pi / (direction == .right ? 2.0 : -2.0))
-        image?.draw(at: CGPoint(x: -context.width/2, y: -context.height/2))
+        context.draw(image, in: CGRect(origin: CGPoint(x: -context.width/2, y: -context.height/2), size: CGSize(width: context.width, height: context.height)))
         context.restoreGState()
         
         undoManager?.registerUndo(withTarget: self) { (target) in
@@ -321,7 +330,7 @@ class DocumentController {
         } else {
             // Automatic color
             for point in outline {
-                let shadowColor = (Palette.current ?? Palette(name: "RRGGBB")).shadow(forColorComponents: point.colorComponents)
+                let shadowColor = (palette ?? Palette(name: "RRGGBB")).shadow(forColorComponents: point.colorComponents)
                 paint(color: shadowColor, at: point.point, size: CGSize(width: 1, height: 1), byUser: false)
             }
         }
@@ -331,10 +340,9 @@ class DocumentController {
     }
     
     func trimCanvas() {
-        guard let image = UIGraphicsGetImageFromCurrentImageContext() else { return }
         var top: Int?
-        findTop: for y in 0..<Int(image.size.height) {
-            for x in 0..<Int(image.size.width) {
+        findTop: for y in 0..<Int(context.height) {
+            for x in 0..<Int(context.width) {
                 let point = PixelPoint(x: x, y: y)
                 if getColorComponents(at: point).alpha != 0 {
                     top = y
@@ -344,8 +352,8 @@ class DocumentController {
         }
         guard top != nil else { return }
         var bottom = 0
-        findBottom: for y in stride(from: Int(image.size.height), to: 0, by: -1) {
-            for x in 0..<Int(image.size.width) {
+        findBottom: for y in stride(from: Int(context.height), to: 0, by: -1) {
+            for x in 0..<Int(context.width) {
                 let point = PixelPoint(x: x, y: y)
                 if getColorComponents(at: point).alpha != 0 {
                     bottom = y
@@ -354,7 +362,7 @@ class DocumentController {
             }
         }
         var left = 0
-        findLeft: for x in 0..<Int(image.size.width) {
+        findLeft: for x in 0..<Int(context.width) {
             for y in top!..<bottom {
                 let point = PixelPoint(x: x, y: y)
                 if getColorComponents(at: point).alpha != 0 {
@@ -364,7 +372,7 @@ class DocumentController {
             }
         }
         var right = 0
-        findRight: for x in stride(from: Int(image.size.width), to: 0, by: -1) {
+        findRight: for x in stride(from: Int(context.width), to: 0, by: -1) {
             for y in top!..<bottom {
                 let point = PixelPoint(x: x, y: y)
                 if getColorComponents(at: point).alpha != 0 {
@@ -376,12 +384,14 @@ class DocumentController {
         let trimRect = CGRect(x: left, y: top!, width: right-left, height: bottom-top!)
         UIGraphicsEndImageContext()
         UIGraphicsBeginImageContext(trimRect.size)
-        image.draw(at: trimRect.origin)
+        guard let image = context.makeImage() else { return }
+        context.draw(image, in: CGRect(origin: trimRect.origin, size: CGSize(width: context.width, height: context.height)))
         context = UIGraphicsGetCurrentContext()
     }
     
     func export(atScale scale: CGFloat) -> UIImage? {
-        guard let image = UIGraphicsGetImageFromCurrentImageContext() else { return nil }
+        guard let cgImage = context.makeImage() else { return nil }
+        let image = UIImage(cgImage: cgImage)
         if scale == 1.0 { return image }
         
         let scaledImageSize = image.size.applying(CGAffineTransform(scaleX: scale, y: scale))

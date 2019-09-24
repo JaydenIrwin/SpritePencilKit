@@ -18,6 +18,14 @@ class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegat
     var canvasDelegate: CanvasViewDelegate?
     var checkerboardView: UIImageView!
     var spriteView: UIImageView!
+    var hoverView: UIView = {
+        let view = UIView(frame: CGRect(origin: .zero, size: CGSize(width: 2.05, height: 2.05)))
+        view.layer.borderWidth = 0.1
+        view.layer.borderColor = UIColor.black.cgColor
+        view.isHidden = true
+        return view
+    }()
+    var toolSizeCopy = CGSize(width: 1, height: 1)
     
     // Grids
     var pixelGridEnabled = false
@@ -95,6 +103,7 @@ class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegat
         
         addSubview(checkerboardView)
         checkerboardView.addSubview(spriteView)
+        spriteView.addSubview(hoverView)
         
         checkerboardView.centerXAnchor.constraint(equalTo: contentLayoutGuide.centerXAnchor)
         checkerboardView.centerYAnchor.constraint(equalTo: contentLayoutGuide.centerYAnchor)
@@ -104,12 +113,24 @@ class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegat
             NSLayoutConstraint(item: spriteView!, attribute: .leading, relatedBy: .equal, toItem: checkerboardView, attribute: .leading, multiplier: 1.0, constant: 0.0),
             NSLayoutConstraint(item: spriteView!, attribute: .trailing, relatedBy: .equal, toItem: checkerboardView, attribute: .trailing, multiplier: 1.0, constant: 0.0)
         ])
-        documentController.refresh()
         
+        let hover = UIHoverGestureRecognizer(target: self, action: #selector(mouseDidMove(with:)))
+        addGestureRecognizer(hover)
+        
+        documentController.refresh()
+        makeCheckerboard()
+		isUserInteractionEnabled = true
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.zoomToFit()
+        }
+	}
+    
+    func makeCheckerboard() {
         checkerboardView.image = {
             guard let checkers = CIFilter(name: "CICheckerboardGenerator") else { return nil }
-            let color0 = CIColor(color: UIColor(white: 0.9, alpha: 1.0))
-            let color1 = CIColor(color: UIColor(white: 0.8, alpha: 1.0))
+            let color0 = CIColor(color: UIColor.systemGray5)
+            let color1 = CIColor(color: UIColor.systemGray6)
             checkers.setValue(color0, forKey: "inputColor0")
             checkers.setValue(color1, forKey: "inputColor1")
             checkers.setValue(1.0, forKey: kCIInputWidthKey)
@@ -127,19 +148,30 @@ class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegat
             let ciContext = CIContext(options: nil)
             return UIImage(cgImage: ciContext.createCGImage(image, from: rect)!)
         }()
-        
-		isUserInteractionEnabled = true
-	}
+    }
+    
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
+            makeCheckerboard()
+        }
+    }
+    
+    func toolSizeChanged(size: CGSize) {
+        toolSizeCopy = size
+        hoverView.bounds.size = CGSize(width: size.width * 2 + 0.05, height: size.height * 2 + 0.05)
+    }
     
     func zoomToFit() {
         let viewRatio = bounds.width / bounds.height
-        let spriteRatio = checkerboardView.bounds.width / checkerboardView.bounds.height
+        let spriteSize = CGSize(width: documentController.context.width, height: documentController.context.height)
+        let spriteRatio = spriteSize.width / spriteSize.height
         
-        let scale: CGFloat
+        var scale: CGFloat = 1/spriteZoomScale
         if viewRatio <= spriteRatio {
-            scale = bounds.width / checkerboardView.bounds.width
+            scale *= bounds.width / spriteSize.width
         } else {
-            scale = bounds.height / checkerboardView.bounds.height
+            scale *= bounds.height / spriteSize.height
         }
         zoomEnabledOverride = true
         if scale < self.minimumZoomScale || self.maximumZoomScale < scale {
@@ -180,7 +212,7 @@ class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegat
                 tileGridLayer = CAShapeLayer()
                 tileGridLayer?.lineWidth = 0.2
                 tileGridLayer?.path = path.cgPath
-                tileGridLayer?.strokeColor = UIColor(white: 0.7, alpha: 1.0).cgColor
+                tileGridLayer?.strokeColor = UIColor.systemGray4.cgColor
                 spriteView.layer.addSublayer(tileGridLayer!)
             }
         } else {
@@ -209,7 +241,7 @@ class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegat
                 pixelGridLayer = CAShapeLayer()
                 pixelGridLayer?.lineWidth = (0.1 / UIScreen.main.scale)
                 pixelGridLayer?.path = path.cgPath
-                pixelGridLayer?.strokeColor = UIColor(white: 0.7, alpha: 1.0).cgColor
+                pixelGridLayer?.strokeColor = UIColor.systemGray4.cgColor
                 spriteView.layer.addSublayer(pixelGridLayer!)
             }
         } else {
@@ -225,7 +257,21 @@ class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegat
         return PixelPoint(x: Int((touchLocation.x - xOffset) / spriteZoomScale), y: Int((touchLocation.y - yOffset) / spriteZoomScale))
     }
     
-    // MARK: - Touches
+    // MARK: - Touches & Hover
+    
+    @objc func mouseDidMove(with recognizer: UIHoverGestureRecognizer) {
+        switch recognizer.state {
+        case .began, .changed:
+            let touchLocation = recognizer.location(in: spriteView)
+            let point = makePixelPoint(touchLocation: touchLocation, toolSize: toolSizeCopy)
+            hoverView.frame.origin = CGPoint(x: CGFloat(point.x * 2) - 0.05, y: CGFloat(point.y * 2) - 0.05)
+            hoverView.isHidden = false
+        case .ended:
+            hoverView.isHidden = true
+        default:
+            break
+        }
+    }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         switch touches.first!.type {
@@ -252,7 +298,7 @@ class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegat
         case is EyedroperTool:
             break
         case is MoveTool:
-            spriteCopy = UIGraphicsGetImageFromCurrentImageContext()!
+            spriteCopy = UIImage(cgImage: documentController.context.makeImage()!)
             dragStartPoint = touches.first!.location(in: spriteView)
         default:
             documentController.undoManager?.beginUndoGrouping()
@@ -380,6 +426,13 @@ class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegat
                 }
             }
             documentController.refresh()
+            
+            #if targetEnvironment(macCatalyst)
+            let touchLocation = touches.first!.location(in: spriteView)
+            let point = makePixelPoint(touchLocation: touchLocation, toolSize: toolSizeCopy)
+            hoverView.frame.origin = CGPoint(x: CGFloat(point.x * 2) - 0.05, y: CGFloat(point.y * 2) - 0.05)
+            hoverView.isHidden = false
+            #endif
         default:
             break
         }
