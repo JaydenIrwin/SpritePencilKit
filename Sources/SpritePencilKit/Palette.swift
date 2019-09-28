@@ -14,10 +14,10 @@ public struct Palette: Equatable {
         return lhs.name == rhs.name
     }
     
-    let name: String
-    let colors: [UIColor]
+    public let name: String
+    public let colors: [UIColor]
     
-    init(name: String) {
+    public init(name: String) {
         self.name = name
         self.colors = {
             var colors = [UIColor]()
@@ -90,7 +90,7 @@ public struct Palette: Equatable {
         }()
     }
     
-    func highlight(forColorComponents colorComponents: ColorComponents) -> UIColor {
+    public func highlight(forColorComponents colorComponents: ColorComponents) -> UIColor {
         switch name {
         case "RRGGBB":
             // Increase components with value = 0 if nothing else can be increased
@@ -178,7 +178,7 @@ public struct Palette: Equatable {
         }
     }
     
-    func shadow(forColorComponents colorComponents: ColorComponents) -> UIColor {
+    public func shadow(forColorComponents colorComponents: ColorComponents) -> UIColor {
         switch name {
         case "RRGGBB":
             let red: UInt8 = {

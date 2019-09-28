@@ -24,11 +24,11 @@ public protocol PaintParticlesDelegate: class {
 
 public class DocumentController {
     
-    enum RotateDirection {
+    public enum RotateDirection {
         case left, right
     }
     
-    var context: CGContext! {
+    public var context: CGContext! {
         didSet {
             let widthMultiple = ContextDataManager.contextWidthMultiple
             let rowOffset = ((context.width + widthMultiple - 1) / widthMultiple) * widthMultiple // Round up to multiple of 8
@@ -40,23 +40,23 @@ public class DocumentController {
             contextDataManager = ContextDataManager(rowOffset: rowOffset, dataPointer: dataPointer)
         }
     }
-    var palette: Palette?
-    var toolColor = UIColor.white
-    var currentOperationPixelPoints = [PixelPoint]()
-    var fillFromColor: UIColor?
-    var fillFromColorComponents: ColorComponents?
-    var contextDataManager: ContextDataManager!
+    public var palette: Palette?
+    public var toolColor = UIColor.white
+    public var currentOperationPixelPoints = [PixelPoint]()
+    public var fillFromColor: UIColor?
+    public var fillFromColorComponents: ColorComponents?
+    public var contextDataManager: ContextDataManager!
     
     // Tools
-    var pencilTool = PencilTool(width: 1)
-    var eraserTool = EraserTool(width: 1)
-    var eyedroperTool = EyedroperTool()
-    var fillTool = FillTool()
-    var moveTool = MoveTool()
-    var highlightTool = HighlightTool(width: 1)
-    var shadowTool = ShadowTool(width: 1)
-    var previousTool: Tool = EraserTool(width: 1)
-    var tool: Tool = PencilTool(width: 1) {
+    public var pencilTool = PencilTool(width: 1)
+    public var eraserTool = EraserTool(width: 1)
+    public var eyedroperTool = EyedroperTool()
+    public var fillTool = FillTool()
+    public var moveTool = MoveTool()
+    public var highlightTool = HighlightTool(width: 1)
+    public var shadowTool = ShadowTool(width: 1)
+    public var previousTool: Tool = EraserTool(width: 1)
+    public var tool: Tool = PencilTool(width: 1) {
         didSet {
             if type(of: tool) != type(of: oldValue) {
                 UISelectionFeedbackGenerator().selectionChanged()
@@ -95,18 +95,18 @@ public class DocumentController {
     }
     
     // Delegates
-    weak var undoManager: UndoManager?
-    weak var recentColorDelegate: RecentColorDelegate?
-    weak var toolDelegate: ToolDelegate?
-    weak var editorDelegate: EditorDelegate?
-    weak var canvasView: CanvasView!
+    weak public var undoManager: UndoManager?
+    weak public var recentColorDelegate: RecentColorDelegate?
+    weak public var toolDelegate: ToolDelegate?
+    weak public var editorDelegate: EditorDelegate?
+    weak public var canvasView: CanvasView!
     
-    init(undoManager: UndoManager?, canvasView: CanvasView) {
+    public init(undoManager: UndoManager?, canvasView: CanvasView) {
         self.undoManager = undoManager
         self.canvasView = canvasView
     }
     
-    func refresh() {
+    public func refresh() {
         canvasView.canvasDelegate?.canvasViewDrawingDidChange(canvasView)
         let image = UIImage(cgImage: context.makeImage()!)
         canvasView.spriteView.image = image
@@ -114,7 +114,7 @@ public class DocumentController {
         editorDelegate?.refreshUndo()
     }
     
-    func paint(color: UIColor, at point: PixelPoint, size: CGSize, byUser: Bool) {
+    public func paint(color: UIColor, at point: PixelPoint, size: CGSize, byUser: Bool) {
         let pointInBounds: PixelPoint
         let sizeInBounds: CGSize
         if byUser {
@@ -151,7 +151,7 @@ public class DocumentController {
         context.fill(CGRect(origin: CGPoint(x: pointInBounds.x, y: pointInBounds.y), size: sizeInBounds))
     }
     
-    func fillPath() {
+    public func fillPath() {
         guard 7 <= currentOperationPixelPoints.count else { return }
         let firstPixelPoint = currentOperationPixelPoints.removeFirst()
         guard abs(firstPixelPoint.x - currentOperationPixelPoints.last!.x) <= 1, abs(firstPixelPoint.y - currentOperationPixelPoints.last!.y) <= 1 else { return }
@@ -169,20 +169,20 @@ public class DocumentController {
         })
     }
     
-    func eyedrop(at point: PixelPoint) {
+    public func eyedrop(at point: PixelPoint) {
         let components = getColorComponents(at: point)
         guard components.alpha == 255 else { return }
         
         editorDelegate?.eyedropColor(colorComponents: components, at: point)
     }
     
-    func getColorComponents(at point: PixelPoint) -> ColorComponents {
+    public func getColorComponents(at point: PixelPoint) -> ColorComponents {
         let cdp = contextDataManager.dataPointer
         let offset = contextDataManager.dataOffset(for: point)
         return ColorComponents(red: cdp[offset+2], green: cdp[offset+1], blue: cdp[offset], alpha: cdp[offset+3])
     }
     
-    func move(dx: CGFloat, dy: CGFloat) {
+    public func move(dx: CGFloat, dy: CGFloat) {
         context.clear()
         let newOrigin = CGPoint(x: dx, y: dy)
         canvasView.spriteCopy.draw(at: newOrigin)
@@ -192,7 +192,7 @@ public class DocumentController {
         }
     }
     
-    func highlight(at point: PixelPoint, size: CGSize) {
+    public func highlight(at point: PixelPoint, size: CGSize) {
         for xOffset in 0..<Int(size.width) {
             for yOffset in 0..<Int(size.height) {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
@@ -203,7 +203,7 @@ public class DocumentController {
         }
     }
     
-    func shadow(at point: PixelPoint, size: CGSize) {
+    public func shadow(at point: PixelPoint, size: CGSize) {
         for xOffset in 0..<Int(size.width) {
             for yOffset in 0..<Int(size.height) {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
@@ -214,7 +214,7 @@ public class DocumentController {
         }
     }
     
-    func fill(at startPoint: PixelPoint) {
+    public func fill(at startPoint: PixelPoint) {
         fillFromColorComponents = getColorComponents(at: startPoint)
         let fillFrom = UIColor(components: fillFromColorComponents!)
         fillFromColor = fillFrom
@@ -256,7 +256,7 @@ public class DocumentController {
         refresh()
     }
     
-    func flip(vertically: Bool) {
+    public func flip(vertically: Bool) {
         let image = context.makeImage()!
         context.clear()
         context.saveGState()
@@ -275,7 +275,7 @@ public class DocumentController {
         refresh()
     }
     
-    func rotate(to direction: RotateDirection) {
+    public func rotate(to direction: RotateDirection) {
         let image = context.makeImage()!
         context.saveGState()
         context.clear()
@@ -291,7 +291,7 @@ public class DocumentController {
         refresh()
     }
     
-    func outline(color: UIColor? = nil) {
+    public func outline(color: UIColor? = nil) {
         var outline = [(point: PixelPoint, colorComponents: ColorComponents)]()
         for y in 0..<context.height {
             for x in 0..<context.width {
@@ -339,7 +339,7 @@ public class DocumentController {
         refresh()
     }
     
-    func trimCanvas() {
+    public func trimCanvas() {
         var top: Int?
         findTop: for y in 0..<Int(context.height) {
             for x in 0..<Int(context.width) {
@@ -389,7 +389,7 @@ public class DocumentController {
         context = UIGraphicsGetCurrentContext()
     }
     
-    func export(atScale scale: CGFloat) -> UIImage? {
+    public func export(atScale scale: CGFloat) -> UIImage? {
         guard let cgImage = context.makeImage() else { return nil }
         let image = UIImage(cgImage: cgImage)
         if scale == 1.0 { return image }

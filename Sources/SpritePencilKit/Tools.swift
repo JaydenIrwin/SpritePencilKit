@@ -13,14 +13,14 @@ public protocol Tool {
 }
 
 public struct PencilTool: Tool {
-    var width: CGFloat
-    var size: CGSize {
+    public var width: CGFloat
+    public var size: CGSize {
         return CGSize(width: width, height: width)
     }
 }
 public struct EraserTool: Tool {
-    var width: CGFloat
-    var size: CGSize {
+    public var width: CGFloat
+    public var size: CGSize {
         return CGSize(width: width, height: width)
     }
 }
@@ -34,14 +34,14 @@ public struct MoveTool: Tool {
     
 }
 public struct HighlightTool: Tool {
-    var width: CGFloat
-    var size: CGSize {
+    public var width: CGFloat
+    public var size: CGSize {
         return CGSize(width: width, height: width)
     }
 }
 public struct ShadowTool: Tool {
-    var width: CGFloat
-    var size: CGSize {
+    public var width: CGFloat
+    public var size: CGSize {
         return CGSize(width: width, height: width)
     }
 }

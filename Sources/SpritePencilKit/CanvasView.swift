@@ -9,32 +9,32 @@ public protocol CanvasViewDelegate {
 
 public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegate {
     
-    enum FingerAction: String {
+    public enum FingerAction: String {
         case ignore, move, eyedrop
     }
 
     // Delegates & Views
-    var documentController: DocumentController!
-    var canvasDelegate: CanvasViewDelegate?
-    var checkerboardView: UIImageView!
-    var spriteView: UIImageView!
-    var hoverView: UIView = {
+    public var documentController: DocumentController!
+    public var canvasDelegate: CanvasViewDelegate?
+    public var checkerboardView: UIImageView!
+    public var spriteView: UIImageView!
+    public var hoverView: UIView = {
         let view = UIView(frame: CGRect(origin: .zero, size: CGSize(width: 2.05, height: 2.05)))
         view.layer.borderWidth = 0.1
         view.layer.borderColor = UIColor.black.cgColor
         view.isHidden = true
         return view
     }()
-    var toolSizeCopy = CGSize(width: 1, height: 1)
+    public var toolSizeCopy = CGSize(width: 1, height: 1)
     
     // Grids
-    var pixelGridEnabled = false
-    var tileGridEnabled = false
-    var tileGridLayer: CAShapeLayer?
-    var pixelGridLayer: CAShapeLayer?
+    public var pixelGridEnabled = false
+    public var tileGridEnabled = false
+    public var tileGridLayer: CAShapeLayer?
+    public var pixelGridLayer: CAShapeLayer?
     
     // General
-    var tool: Tool {
+    public var tool: Tool {
         get {
             return documentController.tool
         }
@@ -42,7 +42,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             documentController.tool = newValue
         }
     }
-    var zoomEnabled = true {
+    public var zoomEnabled = true {
         didSet {
             if zoomEnabled {
                 minimumZoomScale = 4.0
@@ -53,20 +53,20 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             }
         }
     }
-    var zoomEnabledOverride = false
-    var fingerAction = FingerAction.ignore
-    var applePencilUsed = false
-    var applePencilCanEyedrop = true
-    var shouldFillPaths = false
-    var userZoomingCausedAccidentalDrawing = false
-    var spriteZoomScale: CGFloat = 2.0 // Sprite view is 2x scale of checkerboard view
-    var dragStartPoint: CGPoint?
-    var spriteCopy: UIImage! {
+    public var zoomEnabledOverride = false
+    public var fingerAction = FingerAction.ignore
+    public var applePencilUsed = false
+    public var applePencilCanEyedrop = true
+    public var shouldFillPaths = false
+    public var userZoomingCausedAccidentalDrawing = false
+    public var spriteZoomScale: CGFloat = 2.0 // Sprite view is 2x scale of checkerboard view
+    public var dragStartPoint: CGPoint?
+    public var spriteCopy: UIImage! {
         didSet {
             contentSize = spriteCopy.size
         }
     }
-    var shouldStartZooming: Bool {
+    public var shouldStartZooming: Bool {
         let toolSize: CGSize
         switch tool {
         case let pencil as PencilTool:
@@ -85,7 +85,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         return (zoomEnabled && drawnPointsAreCancelable) || zoomEnabledOverride
     }
 
-    func setupView() {
+    public func setupView() {
         delegate = self
         panGestureRecognizer.minimumNumberOfTouches = 2
         delaysContentTouches = false
@@ -126,7 +126,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
 	}
     
-    func makeCheckerboard() {
+    public func makeCheckerboard() {
         checkerboardView.image = {
             guard let checkers = CIFilter(name: "CICheckerboardGenerator") else { return nil }
             let color0 = CIColor(color: UIColor.systemGray5)
@@ -157,12 +157,12 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
     }
     
-    func toolSizeChanged(size: CGSize) {
+    public func toolSizeChanged(size: CGSize) {
         toolSizeCopy = size
         hoverView.bounds.size = CGSize(width: size.width * 2 + 0.05, height: size.height * 2 + 0.05)
     }
     
-    func zoomToFit() {
+    public func zoomToFit() {
         let viewRatio = bounds.width / bounds.height
         let spriteSize = CGSize(width: documentController.context.width, height: documentController.context.height)
         let spriteRatio = spriteSize.width / spriteSize.height
@@ -185,7 +185,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
     }
     
-    func refreshGrid() {
+    public func refreshGrid() {
         let documentWidth = documentController.context.width
         let documentHeight = documentController.context.height
         
@@ -250,7 +250,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
     }
     
-    func makePixelPoint(touchLocation: CGPoint, toolSize: CGSize) -> PixelPoint {
+    public func makePixelPoint(touchLocation: CGPoint, toolSize: CGSize) -> PixelPoint {
         let xOffset: CGFloat = (toolSize.width-1) / 2
         let yOffset: CGFloat = (toolSize.height-1) / 2
         // Returns the top left pixel of the rect of pixels.
@@ -259,7 +259,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     
     // MARK: - Touches & Hover
     
-    @objc func mouseDidMove(with recognizer: UIHoverGestureRecognizer) {
+    @objc public func mouseDidMove(with recognizer: UIHoverGestureRecognizer) {
         switch recognizer.state {
         case .began, .changed:
             let touchLocation = recognizer.location(in: spriteView)
@@ -348,7 +348,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
     }
     
-    func validateTouchesForCurrentTool(_ touches: Set<UITouch>) -> Bool {
+    public func validateTouchesForCurrentTool(_ touches: Set<UITouch>) -> Bool {
         switch touches.first!.type {
         case .pencil:
             return true
@@ -368,7 +368,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
     }
 
-    func touchesStoped(_ touches: Set<UITouch>) {
+    public func touchesStoped(_ touches: Set<UITouch>) {
         switch tool {
         case is PencilTool:
             if shouldFillPaths {
@@ -399,7 +399,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
 	}
     
-    func addSamples(for touches: [UITouch]) {
+    public func addSamples(for touches: [UITouch]) {
         switch tool {
         case is PencilTool, is EraserTool, is MoveTool, is HighlightTool, is ShadowTool:
             for touch in touches {

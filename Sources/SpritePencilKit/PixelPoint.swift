@@ -9,6 +9,6 @@
 import Foundation
 
 public struct PixelPoint: Equatable, Hashable {
-    var x: Int
-    var y: Int
+    public var x: Int
+    public var y: Int
 }

@@ -9,10 +9,10 @@
 import Foundation
 
 public struct ColorComponents: Equatable {
-    let red: UInt8
-    let green: UInt8
-    let blue: UInt8
-    let alpha: UInt8
+    public let red: UInt8
+    public let green: UInt8
+    public let blue: UInt8
+    public let alpha: UInt8
     
     public static func ==(left: ColorComponents, right: ColorComponents) -> Bool {
         return left.red == right.red && left.green == right.green && left.blue == right.blue && left.alpha == right.alpha

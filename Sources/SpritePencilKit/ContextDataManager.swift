@@ -10,12 +10,12 @@ import CoreGraphics
 
 public struct ContextDataManager {
     
-    static let contextWidthMultiple = 8
+    static public let contextWidthMultiple = 8
     
-    var rowOffset: Int
-    var dataPointer: UnsafeMutablePointer<UInt8>
+    public var rowOffset: Int
+    public var dataPointer: UnsafeMutablePointer<UInt8>
     
-    func dataOffset(for point: PixelPoint) -> Int {
+    public func dataOffset(for point: PixelPoint) -> Int {
         return 4 * ((point.y * rowOffset) + point.x)
     }
     
