@@ -150,7 +150,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }()
     }
     
-    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+    override public func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
             makeCheckerboard()
@@ -273,7 +273,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
     }
     
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override public func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         switch touches.first!.type {
         case .pencil:
             applePencilUsed = true
@@ -309,14 +309,14 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
     }
     
-    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override public func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard validateTouchesForCurrentTool(touches) else { return }
         if let coalesced = event?.coalescedTouches(for: touches.first!) {
             addSamples(for: coalesced)
         }
     }
     
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override public func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard validateTouchesForCurrentTool(touches) else { return }
         
         switch tool {
@@ -332,7 +332,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
     }
     
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override public func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard validateTouchesForCurrentTool(touches) else { return }
         
         if userZoomingCausedAccidentalDrawing {
@@ -440,15 +440,15 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     
     // MARK: - Zooming
     
-    func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+    public func viewForZooming(in scrollView: UIScrollView) -> UIView? {
         return shouldStartZooming ? checkerboardView : nil
     }
     
-    func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
+    public func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
         userZoomingCausedAccidentalDrawing = shouldStartZooming && !zoomEnabledOverride
     }
     
-    func scrollViewDidZoom(_ scrollView: UIScrollView) {
+    public func scrollViewDidZoom(_ scrollView: UIScrollView) {
         
         func centerContent() {
             if (contentSize.width < bounds.size.width) {
@@ -472,7 +472,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         centerContent()
     }
     
-    func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
+    public func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
         guard let view = view else { return }
         // Snap to 100%
         let thresholdToSnap: CGFloat = 0.12

@@ -10,7 +10,7 @@ import UIKit
 
 public struct Palette: Equatable {
     
-    static func ==(_ lhs: Palette, _ rhs: Palette) -> Bool {
+    public static func ==(_ lhs: Palette, _ rhs: Palette) -> Bool {
         return lhs.name == rhs.name
     }
     

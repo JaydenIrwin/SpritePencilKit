@@ -14,7 +14,7 @@ public struct ColorComponents: Equatable {
     let blue: UInt8
     let alpha: UInt8
     
-    static func ==(left: ColorComponents, right: ColorComponents) -> Bool {
+    public static func ==(left: ColorComponents, right: ColorComponents) -> Bool {
         return left.red == right.red && left.green == right.green && left.blue == right.blue && left.alpha == right.alpha
     }
 }
