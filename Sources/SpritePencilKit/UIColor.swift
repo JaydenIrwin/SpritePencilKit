@@ -10,7 +10,7 @@ import UIKit
 
 public extension UIColor {
     
-    public convenience init(components: ColorComponents) {
+    convenience init(components: ColorComponents) {
         let red = CGFloat(components.red) / 255.0
         let green = CGFloat(components.green) / 255.0
         let blue = CGFloat(components.blue) / 255.0

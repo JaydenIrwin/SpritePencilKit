@@ -10,7 +10,7 @@ import CoreGraphics
 
 public extension CGContext {
     
-    public func clear() {
+    func clear() {
         clear(CGRect(origin: .zero, size: CGSize(width: width, height: height)))
     }
     
