@@ -99,6 +99,7 @@ public class DocumentController {
     weak public var recentColorDelegate: RecentColorDelegate?
     weak public var toolDelegate: ToolDelegate?
     weak public var editorDelegate: EditorDelegate?
+    weak public var paintParticlesDelegate: PaintParticlesDelegate?
     weak public var canvasView: CanvasView!
     
     public init(undoManager: UndoManager?, canvasView: CanvasView) {
@@ -144,11 +145,13 @@ public class DocumentController {
                 currentOperationPixelPoints.append(brushPoint)
             }
         }
+        
         color.setFill()
         if byUser, color != UIColor.clear {
             recentColorDelegate?.usedColor(color)
         }
         context.fill(CGRect(origin: CGPoint(x: pointInBounds.x, y: pointInBounds.y), size: sizeInBounds))
+        paintParticlesDelegate?.painted(context: context, color: color, at: point)
     }
     
     public func fillPath() {
