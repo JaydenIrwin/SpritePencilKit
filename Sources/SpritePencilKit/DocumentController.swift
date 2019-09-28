@@ -8,21 +8,21 @@
 
 import UIKit
 
-protocol ToolDelegate: class {
+public protocol ToolDelegate: class {
     func selectTool(atIndex index: Int, animated: Bool)
 }
-protocol EditorDelegate: class {
+public protocol EditorDelegate: class {
     func eyedropColor(colorComponents components: ColorComponents, at point: PixelPoint)
     func refreshUndo()
 }
-protocol RecentColorDelegate: class {
+public protocol RecentColorDelegate: class {
     func usedColor(_ color: UIColor)
 }
-protocol PaintParticlesDelegate: class {
+public protocol PaintParticlesDelegate: class {
     func painted(context: CGContext, color: UIColor, at point: PixelPoint)
 }
 
-class DocumentController {
+public class DocumentController {
     
     enum RotateDirection {
         case left, right

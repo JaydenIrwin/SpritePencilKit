@@ -8,7 +8,7 @@
 
 import Foundation
 
-struct PixelPoint: Equatable, Hashable {
+public struct PixelPoint: Equatable, Hashable {
     var x: Int
     var y: Int
 }

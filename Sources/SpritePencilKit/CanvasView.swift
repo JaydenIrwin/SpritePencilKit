@@ -1,13 +1,13 @@
 import UIKit
 
-protocol CanvasViewDelegate {
+public protocol CanvasViewDelegate {
     func canvasViewDrawingDidChange(_ canvasView: CanvasView)
     func canvasViewDidFinishRendering(_ canvasView: CanvasView)
     func canvasViewDidBeginUsingTool(_ canvasView: CanvasView)
     func canvasViewDidEndUsingTool(_ canvasView: CanvasView)
 }
 
-class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegate {
+public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegate {
     
     enum FingerAction: String {
         case ignore, move, eyedrop

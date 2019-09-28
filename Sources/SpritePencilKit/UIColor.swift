@@ -8,7 +8,7 @@
 
 import UIKit
 
-extension UIColor {
+public extension UIColor {
     
     convenience init(components: ColorComponents) {
         let red = CGFloat(components.red) / 255.0

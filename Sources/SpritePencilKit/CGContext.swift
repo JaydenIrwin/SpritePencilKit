@@ -8,7 +8,7 @@
 
 import CoreGraphics
 
-extension CGContext {
+public extension CGContext {
     
     func clear() {
         clear(CGRect(origin: .zero, size: CGSize(width: width, height: height)))

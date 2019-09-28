@@ -8,7 +8,7 @@
 
 import Foundation
 
-struct ColorComponents: Equatable {
+public struct ColorComponents: Equatable {
     let red: UInt8
     let green: UInt8
     let blue: UInt8

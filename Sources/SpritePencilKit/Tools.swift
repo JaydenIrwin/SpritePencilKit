@@ -8,38 +8,38 @@
 
 import CoreGraphics
 
-protocol Tool {
+public protocol Tool {
     
 }
 
-struct PencilTool: Tool {
+public struct PencilTool: Tool {
     var width: CGFloat
     var size: CGSize {
         return CGSize(width: width, height: width)
     }
 }
-struct EraserTool: Tool {
+public struct EraserTool: Tool {
     var width: CGFloat
     var size: CGSize {
         return CGSize(width: width, height: width)
     }
 }
-struct EyedroperTool: Tool {
+public struct EyedroperTool: Tool {
     
 }
-struct FillTool: Tool {
+public struct FillTool: Tool {
     
 }
-struct MoveTool: Tool {
+public struct MoveTool: Tool {
     
 }
-struct HighlightTool: Tool {
+public struct HighlightTool: Tool {
     var width: CGFloat
     var size: CGSize {
         return CGSize(width: width, height: width)
     }
 }
-struct ShadowTool: Tool {
+public struct ShadowTool: Tool {
     var width: CGFloat
     var size: CGSize {
         return CGSize(width: width, height: width)

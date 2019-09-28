@@ -8,7 +8,7 @@
 
 import UIKit
 
-struct Palette: Equatable {
+public struct Palette: Equatable {
     
     static func ==(_ lhs: Palette, _ rhs: Palette) -> Bool {
         return lhs.name == rhs.name

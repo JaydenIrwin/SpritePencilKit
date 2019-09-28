@@ -8,7 +8,7 @@
 
 import CoreGraphics
 
-struct ContextDataManager {
+public struct ContextDataManager {
     
     static let contextWidthMultiple = 8
     
