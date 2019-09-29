@@ -115,6 +115,17 @@ public class DocumentController {
         editorDelegate?.refreshUndo()
     }
     
+    public func undo() {
+        undoManager?.undo()
+        currentOperationPixelPoints.removeAll()
+        refresh()
+    }
+    public func redo() {
+        undoManager?.redo()
+        currentOperationPixelPoints.removeAll()
+        refresh()
+    }
+    
     public func paint(color: UIColor?, at point: PixelPoint, size: CGSize, byUser: Bool) {
         let pointInBounds: PixelPoint
         let sizeInBounds: CGSize
