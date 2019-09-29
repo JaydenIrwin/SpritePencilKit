@@ -113,7 +113,15 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             NSLayoutConstraint(item: spriteView!, attribute: .trailing, relatedBy: .equal, toItem: checkerboardView, attribute: .trailing, multiplier: 1.0, constant: 0.0)
         ])
         
+        let undo = UISwipeGestureRecognizer(target: self, action: #selector(didUndoGesture))
+        undo.direction = .left
+        undo.numberOfTouchesRequired = 3
+        let redo = UISwipeGestureRecognizer(target: self, action: #selector(didRedoGesture))
+        redo.direction = .right
+        redo.numberOfTouchesRequired = 3
         let hover = UIHoverGestureRecognizer(target: self, action: #selector(mouseDidMove(with:)))
+        addGestureRecognizer(undo)
+        addGestureRecognizer(redo)
         addGestureRecognizer(hover)
         
         documentController.refresh()
@@ -254,6 +262,13 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         let yOffset: CGFloat = (toolSize.height-1) / 2
         // Returns the top left pixel of the rect of pixels.
         return PixelPoint(x: Int((touchLocation.x - xOffset) / spriteZoomScale), y: Int((touchLocation.y - yOffset) / spriteZoomScale))
+    }
+    
+    func didUndoGesture() {
+        documentController.undoManager?.undo()
+    }
+    func didRedoGesture() {
+        documentController.undoManager?.redo()
     }
     
     // MARK: - Touches & Hover
