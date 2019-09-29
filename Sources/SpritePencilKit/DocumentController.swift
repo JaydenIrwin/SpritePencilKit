@@ -19,7 +19,7 @@ public protocol RecentColorDelegate: class {
     func usedColor(_ color: UIColor)
 }
 public protocol PaintParticlesDelegate: class {
-    func painted(context: CGContext, color: UIColor, at point: PixelPoint)
+    func painted(context: CGContext, color: UIColor?, at point: PixelPoint)
 }
 
 public class DocumentController {
@@ -115,7 +115,7 @@ public class DocumentController {
         editorDelegate?.refreshUndo()
     }
     
-    public func paint(color: UIColor, at point: PixelPoint, size: CGSize, byUser: Bool) {
+    public func paint(color: UIColor?, at point: PixelPoint, size: CGSize, byUser: Bool) {
         let pointInBounds: PixelPoint
         let sizeInBounds: CGSize
         if byUser {
@@ -138,7 +138,9 @@ public class DocumentController {
         for xOffset in 0..<Int(sizeInBounds.width) {
             for yOffset in 0..<Int(sizeInBounds.height) {
                 let brushPoint = PixelPoint(x: pointInBounds.x + xOffset, y: pointInBounds.y + yOffset)
-                let undoColor = UIColor(components: getColorComponents(at: brushPoint))
+                let undoColorComponents = getColorComponents(at: brushPoint)
+                let isClear = (undoColorComponents.alpha == 0)
+                let undoColor = isClear ? nil : UIColor(components: undoColorComponents)
                 undoManager?.registerUndo(withTarget: self, handler: { (target) in
                     target.paint(color: undoColor, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: false)
                 })
@@ -146,11 +148,16 @@ public class DocumentController {
             }
         }
         
-        color.setFill()
-        if byUser, color != UIColor.clear {
-            recentColorDelegate?.usedColor(color)
+        let fillRect = CGRect(origin: CGPoint(x: pointInBounds.x, y: pointInBounds.y), size: sizeInBounds)
+        if let color = color {
+            color.setFill()
+            context.fill(fillRect)
+            if byUser {
+                recentColorDelegate?.usedColor(color)
+            }
+        } else {
+            context.clear(fillRect)
         }
-        context.fill(CGRect(origin: CGPoint(x: pointInBounds.x, y: pointInBounds.y), size: sizeInBounds))
         paintParticlesDelegate?.painted(context: context, color: color, at: point)
     }
     

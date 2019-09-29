@@ -92,6 +92,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         minimumZoomScale = 4.0
         maximumZoomScale = 32.0
         zoomScale = 4.0
+        scrollsToTop = false
         
         checkerboardView = UIImageView(frame: bounds)
         checkerboardView.layer.magnificationFilter = .nearest
@@ -105,8 +106,6 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         checkerboardView.addSubview(spriteView)
         spriteView.addSubview(hoverView)
         
-        checkerboardView.centerXAnchor.constraint(equalTo: contentLayoutGuide.centerXAnchor)
-        checkerboardView.centerYAnchor.constraint(equalTo: contentLayoutGuide.centerYAnchor)
         addConstraints([
             NSLayoutConstraint(item: spriteView!, attribute: .top, relatedBy: .equal, toItem: checkerboardView, attribute: .top, multiplier: 1.0, constant: 0.0),
             NSLayoutConstraint(item: spriteView!, attribute: .bottom, relatedBy: .equal, toItem: checkerboardView, attribute: .bottom, multiplier: 1.0, constant: 0.0),
@@ -410,7 +409,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
                     documentController.paint(color: documentController.toolColor, at: point, size: pencil.size, byUser: true)
                 case let eraser as EraserTool:
                     let point = makePixelPoint(touchLocation: touchLocation, toolSize: eraser.size)
-                    documentController.paint(color: .clear, at: point, size: eraser.size, byUser: true)
+                    documentController.paint(color: nil, at: point, size: eraser.size, byUser: true)
                 case is MoveTool:
                     let dx = CGFloat((touchLocation.x - dragStartPoint!.x) / spriteZoomScale).rounded()
                     let dy = CGFloat((touchLocation.y - dragStartPoint!.y) / spriteZoomScale).rounded()
@@ -441,7 +440,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     // MARK: - Zooming
     
     public func viewForZooming(in scrollView: UIScrollView) -> UIView? {
-        return shouldStartZooming ? checkerboardView : nil
+        return checkerboardView
     }
     
     public func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
