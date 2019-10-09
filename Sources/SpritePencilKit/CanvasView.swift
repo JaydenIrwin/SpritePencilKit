@@ -265,9 +265,19 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     }
     
     @objc public func doUndo() {
+        if documentController.undoManager?.groupingLevel == 1 {
+            documentController.undoManager?.endUndoGrouping()
+            documentController.undoManager?.undo()
+            documentController.refresh()
+        }
         documentController.undo()
     }
     @objc public func doRedo() {
+        if documentController.undoManager?.groupingLevel == 1 {
+            documentController.undoManager?.endUndoGrouping()
+//            documentController.undoManager?.undo()
+//            documentController.refresh()
+        }
         documentController.redo()
     }
     
@@ -337,28 +347,50 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         case is EyedroperTool:
             let point = makePixelPoint(touchLocation: touches.first!.location(in: spriteView), toolSize: CGSize(width: 1, height: 1))
             documentController.eyedrop(at: point)
-            canvasDelegate?.canvasViewDidEndUsingTool(self)
         default:
             if let coalesced = event?.coalescedTouches(for: touches.first!) {
                 addSamples(for: coalesced)
             }
-            touchesStoped(touches)
+            switch tool {
+            case is PencilTool:
+                if shouldFillPaths {
+                    documentController.fillPath()
+                }
+                documentController.currentOperationPixelPoints.removeAll()
+                documentController.undoManager?.endUndoGrouping()
+            case is MoveTool: //or is EyedroperTool
+                break
+            case is FillTool:
+                let point = makePixelPoint(touchLocation: touches.first!.location(in: spriteView), toolSize: CGSize(width: 1, height: 1))
+                documentController.fill(at: point)
+                documentController.currentOperationPixelPoints.removeAll()
+                documentController.undoManager?.endUndoGrouping()
+            default:
+                documentController.currentOperationPixelPoints.removeAll()
+                documentController.undoManager?.endUndoGrouping()
+            }
+            
+            switch touches.first!.type {
+            case .pencil:
+                break
+            default:
+                if applePencilUsed, fingerAction == .move {
+                    tool = documentController.previousTool
+                }
+            }
         }
+        canvasDelegate?.canvasViewDidEndUsingTool(self)
     }
     
     override public func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard validateTouchesForCurrentTool(touches) else { return }
         
-        if userZoomingCausedAccidentalDrawing {
-            documentController.currentOperationPixelPoints.removeAll()
-            canvasDelegate?.canvasViewDidEndUsingTool(self)
-            if documentController.undoManager?.groupingLevel == 1 {
-                documentController.undoManager?.endUndoGrouping()
-                documentController.undoManager?.undo()
-                documentController.refresh()
-            }
-        } else {
-            touchesStoped(touches)
+        documentController.currentOperationPixelPoints.removeAll()
+        canvasDelegate?.canvasViewDidEndUsingTool(self)
+        if documentController.undoManager?.groupingLevel == 1 {
+            documentController.undoManager?.endUndoGrouping()
+            documentController.undoManager?.undo()
+            documentController.refresh()
         }
     }
     
@@ -381,37 +413,6 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             }
         }
     }
-
-    public func touchesStoped(_ touches: Set<UITouch>) {
-        switch tool {
-        case is PencilTool:
-            if shouldFillPaths {
-                documentController.fillPath()
-            }
-            documentController.currentOperationPixelPoints.removeAll()
-            documentController.undoManager?.endUndoGrouping()
-        case is EyedroperTool, is MoveTool:
-            break
-        case is FillTool:
-            let point = makePixelPoint(touchLocation: touches.first!.location(in: spriteView), toolSize: CGSize(width: 1, height: 1))
-            documentController.fill(at: point)
-            documentController.currentOperationPixelPoints.removeAll()
-            documentController.undoManager?.endUndoGrouping()
-        default:
-            documentController.currentOperationPixelPoints.removeAll()
-            documentController.undoManager?.endUndoGrouping()
-        }
-        canvasDelegate?.canvasViewDidEndUsingTool(self)
-        
-        switch touches.first!.type {
-        case .pencil:
-            break
-        default:
-            if applePencilUsed, fingerAction == .move {
-                tool = documentController.previousTool
-            }
-        }
-	}
     
     public func addSamples(for touches: [UITouch]) {
         switch tool {

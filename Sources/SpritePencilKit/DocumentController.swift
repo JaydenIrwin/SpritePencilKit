@@ -41,7 +41,7 @@ public class DocumentController {
         }
     }
     public var palette: Palette?
-    public var toolColor = UIColor.white
+    public var toolColor = UIColor.black
     public var currentOperationPixelPoints = [PixelPoint]()
     public var fillFromColor: UIColor?
     public var fillFromColorComponents: ColorComponents?
