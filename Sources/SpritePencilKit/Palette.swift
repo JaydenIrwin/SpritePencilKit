@@ -10,19 +10,26 @@ import UIKit
 
 public struct Palette: Equatable {
     
+    public enum Name: String, CaseIterable {
+        case rrggbb = "RRGGBB"
+        case hhhhssbb = "HHHHSSBB"
+        case rrrgggbb = "RRRGGGBB"
+        case messages = "Messages"
+    }
+    
     public static func ==(_ lhs: Palette, _ rhs: Palette) -> Bool {
         return lhs.name == rhs.name
     }
     
-    public let name: String
+    public let name: Name
     public let colors: [UIColor]
     
-    public init(name: String) {
+    public init(name: Name) {
         self.name = name
         self.colors = {
             var colors = [UIColor]()
             switch name {
-            case "Messages":
+            case .messages:
                 for brightness in 0..<4 {
                     colors.append(UIColor(hue: 1.0, saturation: 0.0, brightness: 1.0-(CGFloat(brightness)/3), alpha: 1.0))
                 }
@@ -40,7 +47,7 @@ public struct Palette: Equatable {
                     UIColor(red: 1.0, green: 0.8, blue: 0.6, alpha: 1.0),
                     .brown
                 ]
-            case "RRGGBB":
+            case .rrggbb:
                 for red in 0..<4 {
                     for green in 0..<4 {
                         for blue in 0..<4 {
@@ -56,7 +63,7 @@ public struct Palette: Equatable {
                 //                    }
                 //                }
             //            }
-            case "HHHHSSBB":
+            case .hhhhssbb:
                 for brightness in stride(from: CGFloat(1.0), to: 0.0, by: -0.33333) {
                     colors.append(UIColor(hue: 0.0, saturation: 0.0, brightness: brightness, alpha: 1.0))
                 }
@@ -67,7 +74,7 @@ public struct Palette: Equatable {
                         }
                     }
                 }
-            case "RRRGGGBB":
+            case .rrrgggbb:
                 for red in 0..<8 {
                     for green in 0..<8 {
                         for blue in 0..<4 {
@@ -83,8 +90,6 @@ public struct Palette: Equatable {
                 //                    }
                 //                }
             //            }
-            default:
-                break
             }
             return colors
         }()
@@ -92,7 +97,7 @@ public struct Palette: Equatable {
     
     public func highlight(forColorComponents colorComponents: ColorComponents) -> UIColor {
         switch name {
-        case "RRGGBB":
+        case .rrggbb:
             // Increase components with value = 0 if nothing else can be increased
             let increaseZeros = (colorComponents.red == 0 || colorComponents.red == 255)
                 && (colorComponents.green == 0 || colorComponents.green == 255)
@@ -127,7 +132,7 @@ public struct Palette: Equatable {
             }()
             let newComponents = ColorComponents(red: red, green: green, blue: blue, alpha: colorComponents.alpha)
             return UIColor(components: newComponents)
-        case "RRRGGGBB":
+        case .rrrgggbb:
             // Increase components with value = 0 if nothing else can be increased
             let increaseZeros = (colorComponents.red == 0 || colorComponents.red == 255)
                 && (colorComponents.green == 0 || colorComponents.green == 255)
@@ -180,7 +185,7 @@ public struct Palette: Equatable {
     
     public func shadow(forColorComponents colorComponents: ColorComponents) -> UIColor {
         switch name {
-        case "RRGGBB":
+        case .rrggbb:
             let red: UInt8 = {
                 if colorComponents.red < 255/3 {
                     return 0
@@ -204,7 +209,7 @@ public struct Palette: Equatable {
             }()
             let newComponents = ColorComponents(red: red, green: green, blue: blue, alpha: colorComponents.alpha)
             return UIColor(components: newComponents)
-        case "RRRGGGBB":
+        case .rrrgggbb:
             let red: UInt8 = {
                 if colorComponents.red < 255/7 {
                     return 0
