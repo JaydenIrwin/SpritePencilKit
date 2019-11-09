@@ -7,7 +7,7 @@ public protocol CanvasViewDelegate {
     func canvasViewDidEndUsingTool(_ canvasView: CanvasView)
 }
 
-public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegate {
+public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegate, UIPencilInteractionDelegate {
     
     public enum FingerAction: String {
         case ignore, move, eyedrop
@@ -93,6 +93,10 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         maximumZoomScale = 32.0
         zoomScale = 4.0
         scrollsToTop = false
+        
+        let pencilInteraction = UIPencilInteraction()
+        pencilInteraction.delegate = self
+        addInteraction(pencilInteraction)
         
         checkerboardView = UIImageView(frame: bounds)
         checkerboardView.layer.magnificationFilter = .nearest
@@ -448,6 +452,17 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             hoverView.frame.origin = CGPoint(x: CGFloat(point.x * 2) - 0.05, y: CGFloat(point.y * 2) - 0.05)
             hoverView.isHidden = false
             #endif
+        default:
+            break
+        }
+    }
+    
+    public func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {
+        switch UIPencilInteraction.preferredTapAction {
+        case .switchEraser:
+            documentController.tool = documentController.eraserTool
+        case .switchPrevious:
+            documentController.tool = documentController.previousTool
         default:
             break
         }
