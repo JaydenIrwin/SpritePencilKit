@@ -21,7 +21,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     public var hoverView: UIView = {
         let view = UIView(frame: CGRect(origin: .zero, size: CGSize(width: 2.05, height: 2.05)))
         view.layer.borderWidth = 0.1
-        view.layer.borderColor = UIColor.black.cgColor
+        view.layer.borderColor = UIColor.label.cgColor
         view.isHidden = true
         return view
     }()
