@@ -218,7 +218,7 @@ public class DocumentController {
             for yOffset in 0..<Int(size.height) {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
-                let highlightColor = (palette ?? Palette.rrggbb).highlight(forColorComponents: getColorComponents(at: brushPoint))
+                let highlightColor = (palette ?? Palette.defaultPalette).highlight(forColorComponents: getColorComponents(at: brushPoint))
                 paint(color: highlightColor, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
             }
         }
@@ -229,7 +229,7 @@ public class DocumentController {
             for yOffset in 0..<Int(size.height) {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
-                let shadowColor = (palette ?? Palette.rrggbb).shadow(forColorComponents: getColorComponents(at: brushPoint))
+                let shadowColor = (palette ?? Palette.defaultPalette).shadow(forColorComponents: getColorComponents(at: brushPoint))
                 paint(color: shadowColor, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
             }
         }
@@ -385,7 +385,7 @@ public class DocumentController {
         } else {
             // Automatic color
             for point in outline {
-                let shadowColor = (palette ?? Palette.rrggbb).shadow(forColorComponents: point.colorComponents)
+                let shadowColor = (palette ?? Palette.defaultPalette).shadow(forColorComponents: point.colorComponents)
                 paint(color: shadowColor, at: point.point, size: CGSize(width: 1, height: 1), byUser: false)
             }
         }
