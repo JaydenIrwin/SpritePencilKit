@@ -10,11 +10,8 @@ import UIKit
 
 public struct Palette: Equatable {
     
-    public enum Special: String, CaseIterable {
-        case rrggbb = "RRGGBB"
-        case hhhhssbb = "HHHHSSBB"
-        case rrrgggbb = "RRRGGGBB"
-        case sp16 = "SP 16"
+    public enum Special {
+        case rrggbb, hhhhssbb, rrrgggbb
     }
     
     public static let rrggbb = Palette(name: "RRGGBB", special: .rrggbb, colors: {
@@ -38,15 +35,15 @@ public struct Palette: Equatable {
     }())
     public static let hhhhssbb = Palette(name: "HHHHSSBB", special: .hhhhssbb, colors: {
         var colors = [UIColor]()
-        for brightness in stride(from: CGFloat(1.0), to: 0.0, by: -0.33333) {
-            colors.append(UIColor(hue: 0.0, saturation: 0.0, brightness: brightness, alpha: 1.0))
-        }
         for saturation in stride(from: CGFloat(1.0), to: 0.33333, by: -0.33333) {
             for brightness in stride(from: CGFloat(1.0), to: 0.33333, by: -0.33333) {
                 for hue in 0..<16 {
                     colors.append(UIColor(hue: CGFloat(hue)/16.0, saturation: saturation, brightness: brightness, alpha: 1.0))
                 }
             }
+        }
+        for brightness in stride(from: CGFloat(1.0), to: 0.0, by: -0.33333) {
+            colors.append(UIColor(hue: 0.0, saturation: 0.0, brightness: brightness, alpha: 1.0))
         }
         return colors.map({ color in
             var red: CGFloat = 0.0
@@ -88,7 +85,7 @@ public struct Palette: Equatable {
         let rgb: [(r: UInt8, g: UInt8, b: UInt8)] = [(71, 45, 60),(94, 54, 67),(122, 68, 74),(160, 91, 83),(191, 121, 88),(238, 161, 96),(244, 204, 161),(182, 213, 60),(113, 170, 52),(57, 123, 68),(60, 89, 86),(48, 44, 46),(90, 83, 83),(125, 112, 113),(160, 147, 142),(207, 198, 184),(223, 246, 245),(138, 235, 241),(40, 204, 223),(57, 120, 168),(57, 71, 120),(57, 49, 75),(86, 64, 100),(142, 71, 140),(205, 96, 147),(255, 174, 182),(244, 180, 27),(244, 126, 27),(230, 72, 46),(169, 59, 59),(130, 112, 148),(79, 84, 107)]
         return rgb.map({ ColorComponents(red: $0.r, green: $0.g, blue: $0.b, alpha: 255) })
     }())
-    public static let sp16 = Palette(name: "SP 16", special: .sp16, colors: {
+    public static let sp16 = Palette(name: "SP 16", special: nil, colors: {
         let rgb: [(r: UInt8, g: UInt8, b: UInt8)] = [
             (255, 255, 255),(170, 170, 170),(85, 85, 85),(0, 0, 0),
             (178, 36, 25),(255, 51, 41),(255, 148, 0),(255, 204, 0),
