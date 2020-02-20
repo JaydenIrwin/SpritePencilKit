@@ -282,12 +282,32 @@ public class DocumentController {
         context.clear()
         context.saveGState()
         let number: CGFloat = vertically ? 1.0 : -1.0
-        let tx = vertically ? 0.0 : CGFloat(context.width)
-        let ty = vertically ? CGFloat(context.height) : 0.0
-        let flipVertical = CGAffineTransform(a: number, b: 0.0, c: 0.0, d: -number, tx: tx, ty: ty)
-        context.concatenate(flipVertical)
+        // iOS 13 BUG?
+        // The bug is that the context will flip vertically every time, even when you dont ask it to.
+//        let tx = vertically ? 0.0 : CGFloat(context.width)
+//        let ty = vertically ? CGFloat(context.height) : 0.0
+//        let flipVertical = CGAffineTransform(a: number, b: 0.0, c: 0.0, d: -number, tx: tx, ty: ty)
+//        context.concatenate(flipVertical)
+        
+        // FIX (1/2)
+        if !vertically {
+            let tx = vertically ? 0.0 : CGFloat(context.width)
+            let ty = vertically ? CGFloat(context.height) : 0.0
+            let flipVertical = CGAffineTransform(a: number, b: 0.0, c: 0.0, d: -number, tx: tx, ty: ty)
+            context.concatenate(flipVertical)
+        }
+        
         context.draw(image, in: CGRect(origin: .zero, size: CGSize(width: context.width, height: context.height)))
         context.restoreGState()
+        
+        // FIX (2/2)
+        if !vertically {
+            let image = context.makeImage()!
+            context.clear()
+            context.saveGState()
+            context.draw(image, in: CGRect(origin: .zero, size: CGSize(width: context.width, height: context.height)))
+            context.restoreGState()
+        }
         
         undoManager?.registerUndo(withTarget: self) { (target) in
             target.flip(vertically: vertically)
@@ -300,13 +320,27 @@ public class DocumentController {
         let image = context.makeImage()!
         context.saveGState()
         context.clear()
-        context.translateBy(x: CGFloat(context.width)/2.0, y: CGFloat(context.height)/2.0)
-        context.rotate(by: CGFloat.pi / (direction == .right ? 2.0 : -2.0))
-        context.draw(image, in: CGRect(origin: CGPoint(x: -context.width/2, y: -context.height/2), size: CGSize(width: context.width, height: context.height)))
+        // iOS 13 BUG?
+        // The bug is that the context will flip vertically every time, even when you dont ask it to.
+//        context.translateBy(x: CGFloat(context.width)/2.0, y: CGFloat(context.height)/2.0)
+//        context.rotate(by: CGFloat.pi / (direction == .right ? 2.0 : -2.0))
+//        context.draw(image, in: CGRect(origin: CGPoint(x: -context.width/2, y: -context.height/2), size: CGSize(width: context.width, height: context.height)))
+        
+        // FIX
+        let number: CGFloat = direction == .left ? 1.0 : -1.0
+        let tx = direction == .left ? 0.0 : CGFloat(context.width)
+        let ty = direction == .left ? CGFloat(context.height) : 0.0
+        context.translateBy(x: tx, y: ty)
+        context.scaleBy(x: number, y: -number)
+        context.translateBy(x: CGFloat(context.width)/2, y: CGFloat(context.height)/2)
+        context.rotate(by: .pi/2)
+        context.translateBy(x: CGFloat(-context.width)/2, y: CGFloat(-context.height)/2)
+        context.draw(image, in: CGRect(origin: .zero, size: CGSize(width: context.width, height: context.height)))
+        
         context.restoreGState()
         
         undoManager?.registerUndo(withTarget: self) { (target) in
-            target.rotate(to: .left)
+            target.rotate(to: direction == .left ? .right : .left)
             target.refresh()
         }
         refresh()
