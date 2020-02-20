@@ -219,7 +219,7 @@ public class DocumentController {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
                 let highlightColor = (palette ?? Palette.defaultPalette).highlight(forColorComponents: getColorComponents(at: brushPoint))
-                paint(color: highlightColor, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
+                paint(color: UIColor(components: highlightColor), at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
             }
         }
     }
@@ -230,7 +230,7 @@ public class DocumentController {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
                 let shadowColor = (palette ?? Palette.defaultPalette).shadow(forColorComponents: getColorComponents(at: brushPoint))
-                paint(color: shadowColor, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
+                paint(color: UIColor(components: shadowColor), at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
             }
         }
     }
@@ -386,7 +386,7 @@ public class DocumentController {
             // Automatic color
             for point in outline {
                 let shadowColor = (palette ?? Palette.defaultPalette).shadow(forColorComponents: point.colorComponents)
-                paint(color: shadowColor, at: point.point, size: CGSize(width: 1, height: 1), byUser: false)
+                paint(color: UIColor(components: shadowColor), at: point.point, size: CGSize(width: 1, height: 1), byUser: false)
             }
         }
         undoManager?.endUndoGrouping()
