@@ -26,6 +26,13 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         return view
     }()
     public var toolSizeCopy = CGSize(width: 1, height: 1)
+    override public var bounds: CGRect {
+        didSet {
+            if documentController != nil, !userWillStartZooming {
+                zoomToFit()
+            }
+        }
+    }
     
     // Grids
     public var pixelGridEnabled = false
@@ -58,7 +65,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     public var applePencilUsed = false
     public var applePencilCanEyedrop = true
     public var shouldFillPaths = false
-    public var userZoomingCausedAccidentalDrawing = false
+    public var userWillStartZooming = false
     public var spriteZoomScale: CGFloat = 2.0 // Sprite view is 2x scale of checkerboard view
     public var dragStartPoint: CGPoint?
     public var spriteCopy: UIImage! {
@@ -173,16 +180,18 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         hoverView.bounds.size = CGSize(width: size.width * 2 + 0.05, height: size.height * 2 + 0.05)
     }
     
-    public func zoomToFit() {
-        let viewRatio = bounds.width / bounds.height
+    public func zoomToFit(size: CGSize? = nil) {
+        let viewSize = size ?? bounds.size
+        
+        let viewRatio = viewSize.width / viewSize.height
         let spriteSize = CGSize(width: documentController.context.width, height: documentController.context.height)
         let spriteRatio = spriteSize.width / spriteSize.height
         
         var scale: CGFloat = 1/spriteZoomScale
         if viewRatio <= spriteRatio {
-            scale *= bounds.width / spriteSize.width
+            scale *= viewSize.width / spriteSize.width
         } else {
-            scale *= bounds.height / spriteSize.height
+            scale *= viewSize.height / spriteSize.height
         }
         zoomEnabledOverride = true
         if scale < self.minimumZoomScale || self.maximumZoomScale < scale {
@@ -265,7 +274,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         let xOffset: CGFloat = (toolSize.width-1) / 2
         let yOffset: CGFloat = (toolSize.height-1) / 2
         // Returns the top left pixel of the rect of pixels.
-        return PixelPoint(x: Int((touchLocation.x - xOffset) / spriteZoomScale), y: Int((touchLocation.y - yOffset) / spriteZoomScale))
+        return PixelPoint(x: Int(floor((touchLocation.x - xOffset) / spriteZoomScale)), y: Int(floor((touchLocation.y - yOffset) / spriteZoomScale)))
     }
     
     @objc public func doUndo() {
@@ -279,7 +288,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     @objc public func doRedo() {
         if documentController.undoManager?.groupingLevel == 1 {
             documentController.undoManager?.endUndoGrouping()
-//            documentController.undoManager?.undo()
+//            documentController.undoManager?.redo()
 //            documentController.refresh()
         }
         documentController.redo()
@@ -292,6 +301,10 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         case .began, .changed:
             let touchLocation = recognizer.location(in: spriteView)
             let point = makePixelPoint(touchLocation: touchLocation, toolSize: toolSizeCopy)
+            guard 0 <= point.x, 0 <= point.y, point.x < documentController.context.width, point.y < documentController.context.height else {
+                hoverView.isHidden = true
+                return
+            }
             hoverView.frame.origin = CGPoint(x: CGFloat(point.x * 2) - 0.05, y: CGFloat(point.y * 2) - 0.05)
             hoverView.isHidden = false
         case .ended:
@@ -449,6 +462,10 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             #if targetEnvironment(macCatalyst)
             let touchLocation = touches.first!.location(in: spriteView)
             let point = makePixelPoint(touchLocation: touchLocation, toolSize: toolSizeCopy)
+            guard 0 <= point.x, 0 <= point.y, point.x < documentController.context.width, point.y < documentController.context.height else {
+                hoverView.isHidden = true
+                return
+            }
             hoverView.frame.origin = CGPoint(x: CGFloat(point.x * 2) - 0.05, y: CGFloat(point.y * 2) - 0.05)
             hoverView.isHidden = false
             #endif
@@ -475,7 +492,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     }
     
     public func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
-        userZoomingCausedAccidentalDrawing = shouldStartZooming && !zoomEnabledOverride
+        userWillStartZooming = shouldStartZooming && !zoomEnabledOverride
     }
     
     public func scrollViewDidZoom(_ scrollView: UIScrollView) {
@@ -521,6 +538,8 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             setZoomScale(zoom, animated: true)
             return
         }
+        
+        userWillStartZooming = false
     }
     
 }
