@@ -116,7 +116,7 @@ public struct Palette: Equatable {
     
     public static var customPalettes = [Palette]()
     public static var palettes: [Palette] {
-        return [Palette.rrggbb, Palette.hhhhssbb, Palette.rrrgggbb, Palette.endesga32, Palette.endesga64, Palette.zughy32, Palette.sp16, Palette.sweetie16, Palette.bricks, Palette.rct] + customPalettes
+        return customPalettes + [Palette.endesga32, Palette.endesga64, Palette.zughy32, Palette.sp16, Palette.sweetie16, Palette.bricks, Palette.rct, Palette.rrggbb, Palette.hhhhssbb, Palette.rrrgggbb]
     }
     public static var defaultPalette = Palette.endesga64
     
