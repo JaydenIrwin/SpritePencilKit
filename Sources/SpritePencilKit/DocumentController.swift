@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import CoreImage.CIFilterBuiltins
 
 public protocol ToolDelegate: class {
     func selectTool(atIndex index: Int, animated: Bool)
@@ -296,6 +297,7 @@ public class DocumentController {
             let flipVertical = CGAffineTransform(a: number, b: 0.0, c: 0.0, d: -number, tx: tx, ty: ty)
             context.concatenate(flipVertical)
         }
+        //
         
         context.draw(image, in: CGRect(origin: .zero, size: CGSize(width: context.width, height: context.height)))
         context.restoreGState()
@@ -308,6 +310,7 @@ public class DocumentController {
             context.draw(image, in: CGRect(origin: .zero, size: CGSize(width: context.width, height: context.height)))
             context.restoreGState()
         }
+        //
         
         undoManager?.registerUndo(withTarget: self) { (target) in
             target.flip(vertically: vertically)
@@ -336,6 +339,7 @@ public class DocumentController {
         context.rotate(by: .pi/2)
         context.translateBy(x: CGFloat(-context.width)/2, y: CGFloat(-context.height)/2)
         context.draw(image, in: CGRect(origin: .zero, size: CGSize(width: context.width, height: context.height)))
+        //
         
         context.restoreGState()
         
@@ -394,6 +398,21 @@ public class DocumentController {
         refresh()
     }
     
+    public func posterize() {
+        guard let image = context.makeImage() else { return }
+        let filter = CIFilter.colorPosterize()
+        filter.inputImage = CIImage(cgImage: image)
+        filter.levels = 4
+        let newImage = UIImage(ciImage: filter.outputImage!)
+        newImage.draw(at: .zero)
+        
+        undoManager?.registerUndo(withTarget: self, handler: { (target) in
+            UIImage(cgImage: image).draw(at: .zero)
+            target.refresh()
+        })
+        refresh()
+    }
+    
     public func trimCanvas() {
         var top: Int?
         findTop: for y in 0..<Int(context.height) {
@@ -421,7 +440,7 @@ public class DocumentController {
             for y in top!..<bottom {
                 let point = PixelPoint(x: x, y: y)
                 if getColorComponents(at: point).alpha != 0 {
-                    left = y
+                    left = x
                     break findLeft
                 }
             }
@@ -431,17 +450,22 @@ public class DocumentController {
             for y in top!..<bottom {
                 let point = PixelPoint(x: x, y: y)
                 if getColorComponents(at: point).alpha != 0 {
-                    right = y
+                    right = x
                     break findRight
                 }
             }
         }
-        let trimRect = CGRect(x: left, y: top!, width: right-left, height: bottom-top!)
-        UIGraphicsEndImageContext()
-        UIGraphicsBeginImageContext(trimRect.size)
-        guard let image = context.makeImage() else { return }
-        context.draw(image, in: CGRect(origin: trimRect.origin, size: CGSize(width: context.width, height: context.height)))
-        context = UIGraphicsGetCurrentContext()
+        let trimRect = CGRect(x: left, y: top!, width: right-left+1, height: bottom-top!+1)
+        
+        guard let image = context.makeImage()?.cropping(to: trimRect), let context = CGContext(data: nil, width: Int(trimRect.width), height: Int(trimRect.height), bitsPerComponent: image.bitsPerComponent, bytesPerRow: image.bytesPerRow, space: context.colorSpace!, bitmapInfo: image.alphaInfo.rawValue) else { return }
+        context.draw(image, in: CGRect(origin: .zero, size: trimRect.size))
+        self.context = context
+        refresh()
+        canvasView.makeCheckerboard()
+        canvasView.zoomToFit()
+        undoManager?.registerUndo(withTarget: self, handler: { (target) in
+            //
+        })
     }
     
     public func export(atScale scale: CGFloat) -> UIImage? {
