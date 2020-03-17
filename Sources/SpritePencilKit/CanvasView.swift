@@ -39,6 +39,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     public var tileGridEnabled = false
     public var tileGridLayer: CAShapeLayer?
     public var pixelGridLayer: CAShapeLayer?
+    public var symmetryLineLayer: CALayer?
     
     // General
     public var tool: Tool {
@@ -267,6 +268,18 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         } else {
             pixelGridLayer?.removeFromSuperlayer()
             pixelGridLayer = nil
+        }
+        if documentController.horizontalSymmetry {
+            if symmetryLineLayer == nil {
+                symmetryLineLayer = CALayer()
+                symmetryLineLayer?.frame = CGRect(x: (CGFloat(documentWidth) * spriteZoomScale/2.0) - 0.1, y: 0, width: 0.2, height: CGFloat(documentHeight) * spriteZoomScale)
+                symmetryLineLayer?.borderWidth = 0.2
+                symmetryLineLayer?.borderColor = tintColor.cgColor
+                spriteView.layer.addSublayer(symmetryLineLayer!)
+            }
+        } else {
+            symmetryLineLayer?.removeFromSuperlayer()
+            symmetryLineLayer = nil
         }
     }
     

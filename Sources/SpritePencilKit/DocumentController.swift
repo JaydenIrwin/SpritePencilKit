@@ -47,6 +47,7 @@ public class DocumentController {
     public var fillFromColor: UIColor?
     public var fillFromColorComponents: ColorComponents?
     public var contextDataManager: ContextDataManager!
+    public var horizontalSymmetry = false
     
     // Tools
     public var pencilTool = PencilTool(width: 1)
@@ -128,6 +129,17 @@ public class DocumentController {
     }
     
     public func paint(color: UIColor?, at point: PixelPoint, size: CGSize, byUser: Bool) {
+        
+        func registerUndo(at brushPoint: PixelPoint) {
+            let undoColorComponents = getColorComponents(at: brushPoint)
+            let isClear = (undoColorComponents.alpha == 0)
+            let undoColor = isClear ? nil : UIColor(components: undoColorComponents)
+            undoManager?.registerUndo(withTarget: self, handler: { (target) in
+                target.paint(color: undoColor, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: false)
+            })
+            currentOperationPixelPoints.append(brushPoint)
+        }
+        
         let pointInBounds: PixelPoint
         let sizeInBounds: CGSize
         if byUser {
@@ -146,17 +158,16 @@ public class DocumentController {
             pointInBounds = point
             sizeInBounds = size
         }
+        let symmetricPointInBounds = PixelPoint(x: context.width - pointInBounds.x - Int(sizeInBounds.width), y: pointInBounds.y)
         
         for xOffset in 0..<Int(sizeInBounds.width) {
             for yOffset in 0..<Int(sizeInBounds.height) {
                 let brushPoint = PixelPoint(x: pointInBounds.x + xOffset, y: pointInBounds.y + yOffset)
-                let undoColorComponents = getColorComponents(at: brushPoint)
-                let isClear = (undoColorComponents.alpha == 0)
-                let undoColor = isClear ? nil : UIColor(components: undoColorComponents)
-                undoManager?.registerUndo(withTarget: self, handler: { (target) in
-                    target.paint(color: undoColor, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: false)
-                })
-                currentOperationPixelPoints.append(brushPoint)
+                registerUndo(at: brushPoint)
+                if byUser, horizontalSymmetry {
+                    let brushPoint = PixelPoint(x: symmetricPointInBounds.x + xOffset, y: symmetricPointInBounds.y + yOffset)
+                    registerUndo(at: brushPoint)
+                }
             }
         }
         
@@ -166,9 +177,17 @@ public class DocumentController {
             context.fill(fillRect)
             if byUser {
                 recentColorDelegate?.usedColor(color)
+                if horizontalSymmetry {
+                    let symmetricRect = CGRect(origin: CGPoint(x: symmetricPointInBounds.x, y: symmetricPointInBounds.y), size: sizeInBounds)
+                    context.fill(symmetricRect)
+                }
             }
         } else {
             context.clear(fillRect)
+            if byUser, horizontalSymmetry {
+                let symmetricRect = CGRect(origin: CGPoint(x: symmetricPointInBounds.x, y: symmetricPointInBounds.y), size: sizeInBounds)
+                context.clear(symmetricRect)
+            }
         }
         paintParticlesDelegate?.painted(context: context, color: color, at: point)
     }
