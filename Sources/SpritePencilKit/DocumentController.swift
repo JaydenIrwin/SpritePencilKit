@@ -13,6 +13,7 @@ public protocol ToolDelegate: class {
     func selectTool(atIndex index: Int, animated: Bool)
 }
 public protocol EditorDelegate: class {
+    func hover(at point: PixelPoint?)
     func eyedropColor(colorComponents components: ColorComponents, at point: PixelPoint)
     func refreshUndo()
 }
@@ -126,6 +127,10 @@ public class DocumentController {
         undoManager?.redo()
         currentOperationPixelPoints.removeAll()
         refresh()
+    }
+    
+    public func hover(at point: PixelPoint?) {
+        editorDelegate?.hover(at: point)
     }
     
     public func paint(color: UIColor?, at point: PixelPoint, size: CGSize, byUser: Bool) {

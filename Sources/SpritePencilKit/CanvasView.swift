@@ -25,6 +25,13 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         view.isHidden = true
         return view
     }()
+    public var symmetricHoverView: UIView = {
+        let view = UIView(frame: CGRect(origin: .zero, size: CGSize(width: 2.05, height: 2.05)))
+        view.layer.borderWidth = 0.1
+        view.layer.borderColor = UIColor.label.cgColor
+        view.isHidden = true
+        return view
+    }()
     public var toolSizeCopy = CGSize(width: 1, height: 1)
     override public var bounds: CGRect {
         didSet {
@@ -117,6 +124,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         addSubview(checkerboardView)
         checkerboardView.addSubview(spriteView)
         spriteView.addSubview(hoverView)
+        spriteView.addSubview(symmetricHoverView)
         
         addConstraints([
             NSLayoutConstraint(item: spriteView!, attribute: .top, relatedBy: .equal, toItem: checkerboardView, attribute: .top, multiplier: 1.0, constant: 0.0),
@@ -179,6 +187,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     public func toolSizeChanged(size: CGSize) {
         toolSizeCopy = size
         hoverView.bounds.size = CGSize(width: size.width * 2 + 0.05, height: size.height * 2 + 0.05)
+        symmetricHoverView.bounds.size = hoverView.bounds.size
     }
     
     public func zoomToFit(size: CGSize? = nil) {
@@ -314,17 +323,30 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         case .began, .changed:
             let touchLocation = recognizer.location(in: spriteView)
             let point = makePixelPoint(touchLocation: touchLocation, toolSize: toolSizeCopy)
-            guard 0 <= point.x, 0 <= point.y, point.x < documentController.context.width, point.y < documentController.context.height else {
-                hoverView.isHidden = true
-                return
-            }
-            hoverView.frame.origin = CGPoint(x: CGFloat(point.x * 2) - 0.05, y: CGFloat(point.y * 2) - 0.05)
-            hoverView.isHidden = false
+            updateHoverLocation(at: point)
         case .ended:
             hoverView.isHidden = true
+            symmetricHoverView.isHidden = true
         default:
             break
         }
+    }
+    
+    func updateHoverLocation(at point: PixelPoint) {
+        guard 0 <= point.x, 0 <= point.y, point.x < documentController.context.width, point.y < documentController.context.height else {
+            hoverView.isHidden = true
+            symmetricHoverView.isHidden = true
+            documentController.hover(at: nil)
+            return
+        }
+        hoverView.frame.origin = CGPoint(x: CGFloat(point.x * 2) - 0.05, y: CGFloat(point.y * 2) - 0.05)
+        hoverView.isHidden = false
+        if documentController.horizontalSymmetry {
+            let symmetricPoint = CGPoint(x: CGFloat(documentController.context.width * 2) - CGFloat(point.x * 2) - 0.05 - (toolSizeCopy.width * 2), y: hoverView.frame.origin.y)
+            symmetricHoverView.frame.origin = symmetricPoint
+            symmetricHoverView.isHidden = false
+        }
+        documentController.hover(at: point)
     }
     
     override public func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -408,12 +430,19 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
                     tool = documentController.previousTool
                 }
             }
+            hoverView.isHidden = true
+            symmetricHoverView.isHidden = true
+            documentController.hover(at: nil)
         }
         canvasDelegate?.canvasViewDidEndUsingTool(self)
     }
     
     override public func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard validateTouchesForCurrentTool(touches) else { return }
+        
+        hoverView.isHidden = true
+        symmetricHoverView.isHidden = true
+        documentController.hover(at: nil)
         
         documentController.currentOperationPixelPoints.removeAll()
         canvasDelegate?.canvasViewDidEndUsingTool(self)
@@ -472,16 +501,9 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             }
             documentController.refresh()
             
-            #if targetEnvironment(macCatalyst)
             let touchLocation = touches.first!.location(in: spriteView)
             let point = makePixelPoint(touchLocation: touchLocation, toolSize: toolSizeCopy)
-            guard 0 <= point.x, 0 <= point.y, point.x < documentController.context.width, point.y < documentController.context.height else {
-                hoverView.isHidden = true
-                return
-            }
-            hoverView.frame.origin = CGPoint(x: CGFloat(point.x * 2) - 0.05, y: CGFloat(point.y * 2) - 0.05)
-            hoverView.isHidden = false
-            #endif
+            updateHoverLocation(at: point)
         default:
             break
         }
