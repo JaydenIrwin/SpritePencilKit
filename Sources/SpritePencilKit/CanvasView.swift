@@ -1,4 +1,5 @@
 import UIKit
+import CoreImage.CIFilterBuiltins
 
 public protocol CanvasViewDelegate {
     func canvasViewDrawingDidChange(_ canvasView: CanvasView)
@@ -154,27 +155,24 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
 	}
     
     public func makeCheckerboard() {
-        checkerboardView.image = {
-            guard let checkers = CIFilter(name: "CICheckerboardGenerator") else { return nil }
-            let color0 = CIColor(color: UIColor.systemGray5)
-            let color1 = CIColor(color: UIColor.systemGray6)
-            checkers.setValue(color0, forKey: "inputColor0")
-            checkers.setValue(color1, forKey: "inputColor1")
-            checkers.setValue(1.0, forKey: kCIInputWidthKey)
-            guard let image = checkers.outputImage, let documentContext = documentController.context else { return nil }
-            
-            let minimumCheckerboardPixelSize: CGFloat = 4.0
-            let checkerboardPixelSize = bounds.width / (CGFloat(documentContext.width) * spriteZoomScale)
-            if checkerboardPixelSize < minimumCheckerboardPixelSize {
-                spriteZoomScale = 1.0
-            }
-            
-            let width = CGFloat(documentContext.width) * spriteZoomScale
-            let height = CGFloat(documentContext.height) * spriteZoomScale
-            let rect = CGRect(origin: .zero, size: CGSize(width: width, height: height))
-            let ciContext = CIContext(options: nil)
-            return UIImage(cgImage: ciContext.createCGImage(image, from: rect)!)
-        }()
+        let checkers = CIFilter.checkerboardGenerator()
+        checkers.color0 = CIColor(color: UIColor.systemGray5)
+        checkers.color1 = CIColor(color: UIColor.systemGray6)
+        checkers.width = 1.0
+        guard let image = checkers.outputImage, let documentContext = documentController.context else { return }
+        
+        let minimumCheckerboardPixelSize: CGFloat = 4.0
+        let checkerboardPixelSize = bounds.width / (CGFloat(documentContext.width) * spriteZoomScale)
+        if checkerboardPixelSize < minimumCheckerboardPixelSize {
+            spriteZoomScale = 1.0
+        }
+        
+        let width = CGFloat(documentContext.width) * spriteZoomScale
+        let height = CGFloat(documentContext.height) * spriteZoomScale
+        let rect = CGRect(origin: .zero, size: CGSize(width: width, height: height))
+        let ciContext = CIContext(options: nil)
+        guard let cgImage = ciContext.createCGImage(image, from: rect) else { return }
+        checkerboardView.image = UIImage(cgImage: cgImage)
     }
     
     override public func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -324,7 +322,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             let touchLocation = recognizer.location(in: spriteView)
             let point = makePixelPoint(touchLocation: touchLocation, toolSize: toolSizeCopy)
             updateHoverLocation(at: point)
-        case .ended:
+        case .ended, .cancelled:
             hoverView.isHidden = true
             symmetricHoverView.isHidden = true
         default:

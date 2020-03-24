@@ -18,7 +18,7 @@ public protocol EditorDelegate: class {
     func refreshUndo()
 }
 public protocol RecentColorDelegate: class {
-    func usedColor(_ color: UIColor)
+    func usedColor(components: ColorComponents)
 }
 public protocol PaintParticlesDelegate: class {
     func painted(context: CGContext, color: UIColor?, at point: PixelPoint)
@@ -181,7 +181,14 @@ public class DocumentController {
             color.setFill()
             context.fill(fillRect)
             if byUser {
-                recentColorDelegate?.usedColor(color)
+                var red: CGFloat = 0.0
+                var green: CGFloat = 0.0
+                var blue: CGFloat = 0.0
+                var alpha: CGFloat = 0.0
+                color.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+                let components = ColorComponents(red: UInt8(red*255), green: UInt8(green*255), blue: UInt8(blue*255), alpha: 255)
+                recentColorDelegate?.usedColor(components: components)
+                
                 if horizontalSymmetry {
                     let symmetricRect = CGRect(origin: CGPoint(x: symmetricPointInBounds.x, y: symmetricPointInBounds.y), size: sizeInBounds)
                     context.fill(symmetricRect)
