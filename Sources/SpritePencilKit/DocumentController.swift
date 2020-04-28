@@ -168,10 +168,12 @@ public class DocumentController {
         for xOffset in 0..<Int(sizeInBounds.width) {
             for yOffset in 0..<Int(sizeInBounds.height) {
                 let brushPoint = PixelPoint(x: pointInBounds.x + xOffset, y: pointInBounds.y + yOffset)
-                registerUndo(at: brushPoint)
-                if byUser, horizontalSymmetry {
-                    let brushPoint = PixelPoint(x: symmetricPointInBounds.x + xOffset, y: symmetricPointInBounds.y + yOffset)
+                if byUser {
                     registerUndo(at: brushPoint)
+                    if horizontalSymmetry {
+                        let brushPoint = PixelPoint(x: symmetricPointInBounds.x + xOffset, y: symmetricPointInBounds.y + yOffset)
+                        registerUndo(at: brushPoint)
+                    }
                 }
             }
         }
