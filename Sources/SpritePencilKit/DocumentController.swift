@@ -168,10 +168,12 @@ public class DocumentController {
         for xOffset in 0..<Int(sizeInBounds.width) {
             for yOffset in 0..<Int(sizeInBounds.height) {
                 let brushPoint = PixelPoint(x: pointInBounds.x + xOffset, y: pointInBounds.y + yOffset)
-                registerUndo(at: brushPoint)
-                if byUser, horizontalSymmetry {
-                    let brushPoint = PixelPoint(x: symmetricPointInBounds.x + xOffset, y: symmetricPointInBounds.y + yOffset)
+                if byUser {
                     registerUndo(at: brushPoint)
+                    if horizontalSymmetry {
+                        let brushPoint = PixelPoint(x: symmetricPointInBounds.x + xOffset, y: symmetricPointInBounds.y + yOffset)
+                        registerUndo(at: brushPoint)
+                    }
                 }
             }
         }
@@ -281,8 +283,10 @@ public class DocumentController {
         })
         
         let toolSize = CGSize(width: 1, height: 1)
+        let maxCheckedPixels = 2048
         var stack = [startPoint]
-        while 0 < stack.count {
+        var checkedPixels = 0
+        while 0 < stack.count && checkedPixels < maxCheckedPixels {
             let pixelPoint = stack.popLast()!
             if currentOperationPixelPoints.contains(pixelPoint) || (pixelPoint.y < 0 || pixelPoint.y > context.height - 1 || pixelPoint.x < 0 || pixelPoint.x > context.width - 1) {
                 continue
@@ -301,6 +305,8 @@ public class DocumentController {
             stack.append(PixelPoint(x: pixelPoint.x-1, y: pixelPoint.y))
             stack.append(PixelPoint(x: pixelPoint.x, y: pixelPoint.y+1))
             stack.append(PixelPoint(x: pixelPoint.x, y: pixelPoint.y-1))
+            
+            checkedPixels += 1
         }
         
         undoManager?.registerUndo(withTarget: self, handler: { (target) in
