@@ -71,6 +71,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     }
     public var zoomEnabledOverride = false
     public var fingerAction = FingerAction.ignore
+    public var twoFingerUndoEnabled = true
     public var applePencilUsed = false
     public var applePencilCanEyedrop = true
     public var shouldFillPaths = false
@@ -140,9 +141,15 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         let redo = UISwipeGestureRecognizer(target: self, action: #selector(doRedo))
         redo.direction = .right
         redo.numberOfTouchesRequired = 3
+	let undoAlternative = UITapGestureRecognizer(target: self, action: #selector(doUndoForAltGesture))
+        undoAlternative.numberOfTouchesRequired = 2
+        let redoAlternative = UITapGestureRecognizer(target: self, action: #selector(doRedoForAltGesture))
+        redoAlternative.numberOfTouchesRequired = 3
         let hover = UIHoverGestureRecognizer(target: self, action: #selector(mouseDidMove(with:)))
         addGestureRecognizer(undo)
         addGestureRecognizer(redo)
+	addGestureRecognizer(redoAlternative)
+        addGestureRecognizer(undoAlternative)
         addGestureRecognizer(hover)
         
         documentController.refresh()
@@ -312,6 +319,16 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
 //            documentController.refresh()
         }
         documentController.redo()
+    }
+    @objc public func doUndoForAltGesture() {
+        if twoFingerUndoEnabled {
+            doUndo()
+        }
+    }
+    @objc public func doRedoForAltGesture() {
+        if twoFingerUndoEnabled {
+            doRedo()
+        }
     }
     
     // MARK: - Touches & Hover
