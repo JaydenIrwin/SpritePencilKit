@@ -505,18 +505,23 @@ public class DocumentController {
         })
     }
     
-    public func export(atScale scale: CGFloat) -> UIImage? {
+    public func export(scale: CGFloat, backgroundColor: UIColor? = nil) -> UIImage? {
         guard let cgImage = context.makeImage() else { return nil }
         let image = UIImage(cgImage: cgImage)
-        if scale == 1.0 { return image }
+        if scale == 1.0, backgroundColor == nil { return image }
         
         let scaledImageSize = image.size.applying(CGAffineTransform(scaleX: scale, y: scale))
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         let renderer = UIGraphicsImageRenderer(size: scaledImageSize, format: format)
         let scaledImage = renderer.image { (context) in
+            let rect = CGRect(origin: .zero, size: scaledImageSize)
+            if let color = backgroundColor {
+                color.setFill()
+                UIRectFill(rect)
+            }
             context.cgContext.interpolationQuality = .none
-            image.draw(in: CGRect(origin: .zero, size: scaledImageSize))
+            image.draw(in: rect)
         }
         return scaledImage
     }
