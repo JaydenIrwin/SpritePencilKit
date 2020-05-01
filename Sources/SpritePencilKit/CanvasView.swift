@@ -10,6 +10,9 @@ public protocol CanvasViewDelegate {
 
 public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegate, UIPencilInteractionDelegate {
     
+    public static let defaultMinimumZoomScale: CGFloat = 1.0 // Must be low since if current < minimum, view will not zoom in.
+    public static let defaultMaximumZoomScale: CGFloat = 32.0
+    
     public enum FingerAction: String {
         case ignore, move, eyedrop
     }
@@ -52,7 +55,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     // General
     public var tool: Tool {
         get {
-            return documentController.tool
+            documentController.tool
         }
         set {
             documentController.tool = newValue
@@ -61,8 +64,8 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     public var zoomEnabled = true {
         didSet {
             if zoomEnabled {
-                minimumZoomScale = 4.0
-                maximumZoomScale = 32.0
+                minimumZoomScale = CanvasView.defaultMinimumZoomScale
+                maximumZoomScale = CanvasView.defaultMaximumZoomScale
             } else {
                 minimumZoomScale = zoomScale
                 maximumZoomScale = zoomScale
@@ -84,30 +87,15 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
     }
     public var shouldStartZooming: Bool {
-        let toolSize: CGSize
-        switch tool {
-        case let pencil as PencilTool:
-            toolSize = pencil.size
-        case let eraser as EraserTool:
-            toolSize = eraser.size
-        case let highlight as HighlightTool:
-            toolSize = highlight.size
-        case let shadow as ShadowTool:
-            toolSize = shadow.size
-        default:
-            toolSize = CGSize(width: 1, height: 1)
-        }
-        let maximumCancelableDrawnPoints = 8 * Int(toolSize.width * toolSize.height)
-        let drawnPointsAreCancelable = (documentController.currentOperationPixelPoints.count <= maximumCancelableDrawnPoints)
-        return (zoomEnabled && drawnPointsAreCancelable) || zoomEnabledOverride
+        (zoomEnabled && drawnPointsAreCancelable()) || zoomEnabledOverride
     }
 
     public func setupView() {
         delegate = self
         panGestureRecognizer.minimumNumberOfTouches = 2
         delaysContentTouches = false
-        minimumZoomScale = 4.0
-        maximumZoomScale = 32.0
+        minimumZoomScale = CanvasView.defaultMinimumZoomScale
+        maximumZoomScale = CanvasView.defaultMaximumZoomScale
         zoomScale = 4.0
         scrollsToTop = false
         
@@ -195,6 +183,25 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         symmetricHoverView.bounds.size = hoverView.bounds.size
     }
     
+    public func drawnPointsAreCancelable() -> Bool {
+        guard !documentController.currentOperationPixelPoints.isEmpty else { return false }
+        let toolSize: CGSize
+        switch tool {
+        case let pencil as PencilTool:
+            toolSize = pencil.size
+        case let eraser as EraserTool:
+            toolSize = eraser.size
+        case let highlight as HighlightTool:
+            toolSize = highlight.size
+        case let shadow as ShadowTool:
+            toolSize = shadow.size
+        default:
+            toolSize = CGSize(width: 1, height: 1)
+        }
+        let maximumCancelableDrawnPoints = 8 * Int(toolSize.width * toolSize.height)
+        return (documentController.currentOperationPixelPoints.count <= maximumCancelableDrawnPoints)
+    }
+    
     public func zoomToFit(size: CGSize? = nil) {
         let viewSize = size ?? bounds.size
         
@@ -215,9 +222,9 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
         self.setZoomScale(scale, animated: false)
         self.checkerboardView.frame.origin = .zero
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false, block: { _ in
             self.zoomEnabledOverride = false
-        }
+        })
     }
     
     public func refreshGrid() {
@@ -321,12 +328,12 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         documentController.redo()
     }
     @objc public func doUndoForAltGesture() {
-        if twoFingerUndoEnabled {
+        if twoFingerUndoEnabled, drawnPointsAreCancelable() {
             doUndo()
         }
     }
     @objc public func doRedoForAltGesture() {
-        if twoFingerUndoEnabled {
+        if twoFingerUndoEnabled, drawnPointsAreCancelable() {
             doRedo()
         }
     }
@@ -454,15 +461,20 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     
     override public func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard validateTouchesForCurrentTool(touches) else { return }
+        let drawnPointsAreCancelableBool = drawnPointsAreCancelable()
+        
+        documentController.currentOperationPixelPoints.removeAll()
+        if documentController.undoManager?.groupingLevel == 1 {
+            documentController.undoManager?.endUndoGrouping()
+        }
         
         hoverView.isHidden = true
         symmetricHoverView.isHidden = true
         documentController.hover(at: nil)
         
-        documentController.currentOperationPixelPoints.removeAll()
         canvasDelegate?.canvasViewDidEndUsingTool(self)
-        if documentController.undoManager?.groupingLevel == 1 {
-            documentController.undoManager?.endUndoGrouping()
+        
+        if drawnPointsAreCancelableBool {
             documentController.undoManager?.undo()
             documentController.refresh()
         }
