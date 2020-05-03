@@ -32,6 +32,10 @@ public class DocumentController {
     
     public var context: CGContext! {
         didSet {
+            context.setBlendMode(.copy)
+            context.setAllowsAntialiasing(false)
+            context.setShouldAntialias(false)
+            
             let widthMultiple = ContextDataManager.contextWidthMultiple
             let rowOffset = ((context.width + widthMultiple - 1) / widthMultiple) * widthMultiple // Round up to multiple of 8
             let dataPointer: UnsafeMutablePointer<UInt8> = {
@@ -43,7 +47,10 @@ public class DocumentController {
         }
     }
     public var palette: Palette?
-    public var toolColor = UIColor.black
+    public var toolColor: UIColor {
+        UIColor(components: toolColorComponents)
+    }
+    public var toolColorComponents = ColorComponents(red: 0, green: 0, blue: 0, alpha: 255)
     public var currentOperationPixelPoints = [PixelPoint]()
     public var fillFromColor: UIColor?
     public var fillFromColorComponents: ColorComponents?
@@ -133,14 +140,12 @@ public class DocumentController {
         editorDelegate?.hover(at: point)
     }
     
-    public func paint(color: UIColor?, at point: PixelPoint, size: CGSize, byUser: Bool) {
+    public func paint(colorComponents: ColorComponents, at point: PixelPoint, size: CGSize, byUser: Bool) {
         
         func registerUndo(at brushPoint: PixelPoint) {
             let undoColorComponents = getColorComponents(at: brushPoint)
-            let isClear = (undoColorComponents.alpha == 0)
-            let undoColor = isClear ? nil : UIColor(components: undoColorComponents)
             undoManager?.registerUndo(withTarget: self, handler: { (target) in
-                target.paint(color: undoColor, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: false)
+                target.paint(colorComponents: undoColorComponents, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: false)
             })
             currentOperationPixelPoints.append(brushPoint)
         }
@@ -179,28 +184,16 @@ public class DocumentController {
         }
         
         let fillRect = CGRect(origin: CGPoint(x: pointInBounds.x, y: pointInBounds.y), size: sizeInBounds)
-        if let color = color {
-            color.setFill()
-            context.fill(fillRect)
-            if byUser {
-                var red: CGFloat = 0.0
-                var green: CGFloat = 0.0
-                var blue: CGFloat = 0.0
-                var alpha: CGFloat = 0.0
-                color.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-                let components = ColorComponents(red: UInt8(red*255), green: UInt8(green*255), blue: UInt8(blue*255), alpha: 255)
-                recentColorDelegate?.usedColor(components: components)
-                
-                if horizontalSymmetry {
-                    let symmetricRect = CGRect(origin: CGPoint(x: symmetricPointInBounds.x, y: symmetricPointInBounds.y), size: sizeInBounds)
-                    context.fill(symmetricRect)
-                }
+        let color = UIColor(components: colorComponents)
+        color.setFill()
+        context.fill(fillRect)
+        if byUser {
+            if 127 < colorComponents.alpha {
+                recentColorDelegate?.usedColor(components: colorComponents)
             }
-        } else {
-            context.clear(fillRect)
-            if byUser, horizontalSymmetry {
+            if horizontalSymmetry {
                 let symmetricRect = CGRect(origin: CGPoint(x: symmetricPointInBounds.x, y: symmetricPointInBounds.y), size: sizeInBounds)
-                context.clear(symmetricRect)
+                context.fill(symmetricRect)
             }
         }
         paintParticlesDelegate?.painted(context: context, color: color, at: point)
@@ -252,8 +245,8 @@ public class DocumentController {
             for yOffset in 0..<Int(size.height) {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
-                let highlightColor = (palette ?? Palette.defaultPalette).highlight(forColorComponents: getColorComponents(at: brushPoint))
-                paint(color: UIColor(components: highlightColor), at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
+                let highlightComponents = (palette ?? Palette.defaultPalette).highlight(forColorComponents: getColorComponents(at: brushPoint))
+                paint(colorComponents: highlightComponents, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
             }
         }
     }
@@ -263,8 +256,8 @@ public class DocumentController {
             for yOffset in 0..<Int(size.height) {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
-                let shadowColor = (palette ?? Palette.defaultPalette).shadow(forColorComponents: getColorComponents(at: brushPoint))
-                paint(color: UIColor(components: shadowColor), at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
+                let shadowComponents = (palette ?? Palette.defaultPalette).shadow(forColorComponents: getColorComponents(at: brushPoint))
+                paint(colorComponents: shadowComponents, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
             }
         }
     }
@@ -387,7 +380,7 @@ public class DocumentController {
         refresh()
     }
     
-    public func outline(color: UIColor? = nil) {
+    public func outline(colorComponents: ColorComponents? = nil) {
         var outline = [(point: PixelPoint, colorComponents: ColorComponents)]()
         for y in 0..<context.height {
             for x in 0..<context.width {
@@ -419,15 +412,15 @@ public class DocumentController {
             }
         }
         undoManager?.beginUndoGrouping()
-        if let color = color {
+        if let colorComponents = colorComponents {
             for point in outline {
-                paint(color: color, at: point.point, size: CGSize(width: 1, height: 1), byUser: false)
+                paint(colorComponents: colorComponents, at: point.point, size: CGSize(width: 1, height: 1), byUser: false)
             }
         } else {
             // Automatic color
             for point in outline {
                 let shadowColor = (palette ?? Palette.defaultPalette).shadow(forColorComponents: point.colorComponents)
-                paint(color: UIColor(components: shadowColor), at: point.point, size: CGSize(width: 1, height: 1), byUser: false)
+                paint(colorComponents: shadowColor, at: point.point, size: CGSize(width: 1, height: 1), byUser: false)
             }
         }
         undoManager?.endUndoGrouping()

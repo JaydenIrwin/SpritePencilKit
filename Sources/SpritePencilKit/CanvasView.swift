@@ -508,10 +508,10 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
                 switch tool {
                 case let pencil as PencilTool:
                     let point = makePixelPoint(touchLocation: touchLocation, toolSize: pencil.size)
-                    documentController.paint(color: documentController.toolColor, at: point, size: pencil.size, byUser: true)
+                    documentController.paint(colorComponents: documentController.toolColorComponents, at: point, size: pencil.size, byUser: true)
                 case let eraser as EraserTool:
                     let point = makePixelPoint(touchLocation: touchLocation, toolSize: eraser.size)
-                    documentController.paint(color: nil, at: point, size: eraser.size, byUser: true)
+                    documentController.paint(colorComponents: .clear, at: point, size: eraser.size, byUser: true)
                 case is MoveTool:
                     let dx = CGFloat((touchLocation.x - dragStartPoint!.x) / spriteZoomScale).rounded()
                     let dy = CGFloat((touchLocation.y - dragStartPoint!.y) / spriteZoomScale).rounded()

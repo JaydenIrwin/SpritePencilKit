@@ -9,6 +9,9 @@
 import Foundation
 
 public struct ColorComponents: Equatable {
+    
+    public static let clear = ColorComponents(red: 0, green: 0, blue: 0, alpha: 0)
+    
     public let red: UInt8
     public let green: UInt8
     public let blue: UInt8
