@@ -47,12 +47,8 @@ public class DocumentController {
         }
     }
     public var palette: Palette?
-    public var toolColor: UIColor {
-        UIColor(components: toolColorComponents)
-    }
     public var toolColorComponents = ColorComponents(red: 0, green: 0, blue: 0, alpha: 255)
     public var currentOperationPixelPoints = [PixelPoint]()
-    public var fillFromColor: UIColor?
     public var fillFromColorComponents: ColorComponents?
     public var contextDataManager: ContextDataManager!
     public var horizontalSymmetry = false
@@ -140,12 +136,20 @@ public class DocumentController {
         editorDelegate?.hover(at: point)
     }
     
+    func basicPaint(colorComponents: ColorComponents, at point: PixelPoint) {
+        let offset = contextDataManager.dataOffset(for: point)
+        contextDataManager.dataPointer[offset+2] = colorComponents.red
+        contextDataManager.dataPointer[offset+1] = colorComponents.green
+        contextDataManager.dataPointer[offset] = colorComponents.blue
+        contextDataManager.dataPointer[offset+3] = colorComponents.alpha
+    }
+    
     public func paint(colorComponents: ColorComponents, at point: PixelPoint, size: PixelSize, doneByUser: Bool) {
         
         func registerUndo(at brushPoint: PixelPoint) {
             let undoColorComponents = getColorComponents(at: brushPoint)
             undoManager?.registerUndo(withTarget: self, handler: { (target) in
-                target.paint(colorComponents: undoColorComponents, at: brushPoint, size: PixelSize(width: 1, height: 1), doneByUser: false)
+                target.basicPaint(colorComponents: undoColorComponents, at: brushPoint)
             })
             currentOperationPixelPoints.append(brushPoint)
         }
@@ -170,8 +174,6 @@ public class DocumentController {
         }
         let symmetricPointInBounds = PixelPoint(x: context.width - pointInBounds.x - sizeInBounds.width, y: pointInBounds.y)
         
-        let cdp = contextDataManager.dataPointer
-        
         for xOffset in 0..<(sizeInBounds.width) {
             for yOffset in 0..<(sizeInBounds.height) {
                 let brushPoint = PixelPoint(x: pointInBounds.x + xOffset, y: pointInBounds.y + yOffset)
@@ -181,19 +183,11 @@ public class DocumentController {
                     if horizontalSymmetry {
                         let brushPoint = PixelPoint(x: symmetricPointInBounds.x + xOffset, y: symmetricPointInBounds.y + yOffset)
                         registerUndo(at: brushPoint)
-                        let offset = contextDataManager.dataOffset(for: brushPoint)
-                        cdp[offset+2] = colorComponents.red
-                        cdp[offset+1] = colorComponents.green
-                        cdp[offset] = colorComponents.blue
-                        cdp[offset+3] = colorComponents.alpha
+                        basicPaint(colorComponents: colorComponents, at: brushPoint)
                     }
                 }
                 
-                let offset = contextDataManager.dataOffset(for: brushPoint)
-                cdp[offset+2] = colorComponents.red
-                cdp[offset+1] = colorComponents.green
-                cdp[offset] = colorComponents.blue
-                cdp[offset+3] = colorComponents.alpha
+                basicPaint(colorComponents: colorComponents, at: brushPoint)
             }
         }
         
@@ -245,8 +239,8 @@ public class DocumentController {
     }
     
     public func highlight(at point: PixelPoint, size: PixelSize) {
-        for xOffset in 0..<(size.width) {
-            for yOffset in 0..<(size.height) {
+        for xOffset in 0..<size.width {
+            for yOffset in 0..<size.height {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
                 let highlightComponents = (palette ?? Palette.defaultPalette).highlight(forColorComponents: getColorComponents(at: brushPoint))
@@ -256,8 +250,8 @@ public class DocumentController {
     }
     
     public func shadow(at point: PixelPoint, size: PixelSize) {
-        for xOffset in 0..<(size.width) {
-            for yOffset in 0..<(size.height) {
+        for xOffset in 0..<size.width {
+            for yOffset in 0..<size.height {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
                 let shadowComponents = (palette ?? Palette.defaultPalette).shadow(forColorComponents: getColorComponents(at: brushPoint))
@@ -268,33 +262,27 @@ public class DocumentController {
     
     public func fill(at startPoint: PixelPoint) {
         fillFromColorComponents = getColorComponents(at: startPoint)
-        let fillFrom = UIColor(components: fillFromColorComponents!)
-        fillFromColor = fillFrom
-        guard fillFromColor != toolColor else { return }
+        guard fillFromColorComponents != toolColorComponents else { return }
         
-        toolColor.setFill()
         undoManager?.registerUndo(withTarget: self, handler: { (target) in
-            target.toolColor.setFill()
-            target.refresh()
             target.currentOperationPixelPoints.removeAll()
+            target.refresh()
         })
         
-        let toolSize = CGSize(width: 1, height: 1)
         let maxCheckedPixels = 2048
         var stack = [startPoint]
         var checkedPixels = 0
-        while 0 < stack.count && checkedPixels < maxCheckedPixels {
-            let pixelPoint = stack.popLast()!
+        while checkedPixels < maxCheckedPixels {
+            guard let pixelPoint = stack.popLast() else { return }
             if currentOperationPixelPoints.contains(pixelPoint) || (pixelPoint.y < 0 || pixelPoint.y > context.height - 1 || pixelPoint.x < 0 || pixelPoint.x > context.width - 1) {
                 continue
             }
             guard getColorComponents(at: pixelPoint) == fillFromColorComponents else { continue }
-
-            let point = CGPoint(x: pixelPoint.x, y: pixelPoint.y)
-            UIRectFill(CGRect(origin: point, size: toolSize))
+            
             undoManager?.registerUndo(withTarget: self, handler: { (target) in
-                UIRectFill(CGRect(origin: point, size: toolSize))
+                target.basicPaint(colorComponents: self.fillFromColorComponents!, at: pixelPoint)
             })
+            basicPaint(colorComponents: toolColorComponents, at: pixelPoint)
             
             currentOperationPixelPoints.append(pixelPoint)
             
@@ -306,9 +294,7 @@ public class DocumentController {
             checkedPixels += 1
         }
         
-        undoManager?.registerUndo(withTarget: self, handler: { (target) in
-            fillFrom.setFill()
-        })
+        currentOperationPixelPoints.removeAll()
         refresh()
     }
     
@@ -418,13 +404,19 @@ public class DocumentController {
         undoManager?.beginUndoGrouping()
         if let colorComponents = colorComponents {
             for point in outline {
-                paint(colorComponents: colorComponents, at: point.point, size: PixelSize(width: 1, height: 1), doneByUser: false)
+                undoManager?.registerUndo(withTarget: self, handler: { (target) in
+                    target.basicPaint(colorComponents: point.colorComponents, at: point.point)
+                })
+                basicPaint(colorComponents: colorComponents, at: point.point)
             }
         } else {
             // Automatic color
             for point in outline {
                 let shadowColor = (palette ?? Palette.defaultPalette).shadow(forColorComponents: point.colorComponents)
-                paint(colorComponents: shadowColor, at: point.point, size: PixelSize(width: 1, height: 1), doneByUser: false)
+                undoManager?.registerUndo(withTarget: self, handler: { (target) in
+                    target.basicPaint(colorComponents: point.colorComponents, at: point.point)
+                })
+                basicPaint(colorComponents: shadowColor, at: point.point)
             }
         }
         undoManager?.endUndoGrouping()
