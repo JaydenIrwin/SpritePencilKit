@@ -36,7 +36,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         view.isHidden = true
         return view
     }()
-    public var toolSizeCopy = CGSize(width: 1, height: 1)
+    public var toolSizeCopy = PixelSize(width: 1, height: 1)
     override public var bounds: CGRect {
         didSet {
             if documentController != nil, !userWillStartZooming {
@@ -177,15 +177,15 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
     }
     
-    public func toolSizeChanged(size: CGSize) {
+    public func toolSizeChanged(size: PixelSize) {
         toolSizeCopy = size
-        hoverView.bounds.size = CGSize(width: size.width * 2 + 0.05, height: size.height * 2 + 0.05)
+        hoverView.bounds.size = CGSize(width: CGFloat(size.width * 2) + 0.05, height: CGFloat(size.height * 2) + 0.05)
         symmetricHoverView.bounds.size = hoverView.bounds.size
     }
     
     public func drawnPointsAreCancelable() -> Bool {
         guard !documentController.currentOperationPixelPoints.isEmpty else { return false }
-        let toolSize: CGSize
+        let toolSize: PixelSize
         switch tool {
         case let pencil as PencilTool:
             toolSize = pencil.size
@@ -196,9 +196,9 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         case let shadow as ShadowTool:
             toolSize = shadow.size
         default:
-            toolSize = CGSize(width: 1, height: 1)
+            toolSize = PixelSize(width: 1, height: 1)
         }
-        let maximumCancelableDrawnPoints = 8 * Int(toolSize.width * toolSize.height)
+        let maximumCancelableDrawnPoints = 8 * (toolSize.width * toolSize.height)
         return (documentController.currentOperationPixelPoints.count <= maximumCancelableDrawnPoints)
     }
     
@@ -304,9 +304,9 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
     }
     
-    public func makePixelPoint(touchLocation: CGPoint, toolSize: CGSize) -> PixelPoint {
-        let xOffset: CGFloat = (toolSize.width-1) / 2
-        let yOffset: CGFloat = (toolSize.height-1) / 2
+    public func makePixelPoint(touchLocation: CGPoint, toolSize: PixelSize) -> PixelPoint {
+        let xOffset = CGFloat(toolSize.width-1) / 2
+        let yOffset = CGFloat(toolSize.height-1) / 2
         // Returns the top left pixel of the rect of pixels.
         return PixelPoint(x: Int(floor((touchLocation.x - xOffset) / spriteZoomScale)), y: Int(floor((touchLocation.y - yOffset) / spriteZoomScale)))
     }
@@ -364,7 +364,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         hoverView.frame.origin = CGPoint(x: CGFloat(point.x * 2) - 0.05, y: CGFloat(point.y * 2) - 0.05)
         hoverView.isHidden = false
         if documentController.horizontalSymmetry {
-            let symmetricPoint = CGPoint(x: CGFloat(documentController.context.width * 2) - CGFloat(point.x * 2) - 0.05 - (toolSizeCopy.width * 2), y: hoverView.frame.origin.y)
+            let symmetricPoint = CGPoint(x: CGFloat(documentController.context.width * 2) - CGFloat(point.x * 2) - 0.05 - CGFloat(toolSizeCopy.width * 2), y: hoverView.frame.origin.y)
             symmetricHoverView.frame.origin = symmetricPoint
             symmetricHoverView.isHidden = false
         }
@@ -419,7 +419,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         
         switch tool {
         case is EyedroperTool:
-            let point = makePixelPoint(touchLocation: touches.first!.location(in: spriteView), toolSize: CGSize(width: 1, height: 1))
+            let point = makePixelPoint(touchLocation: touches.first!.location(in: spriteView), toolSize: PixelSize(width: 1, height: 1))
             documentController.eyedrop(at: point)
         default:
             if let coalesced = event?.coalescedTouches(for: touches.first!) {
@@ -435,7 +435,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             case is MoveTool: //or is EyedroperTool
                 break
             case is FillTool:
-                let point = makePixelPoint(touchLocation: touches.first!.location(in: spriteView), toolSize: CGSize(width: 1, height: 1))
+                let point = makePixelPoint(touchLocation: touches.first!.location(in: spriteView), toolSize: PixelSize(width: 1, height: 1))
                 documentController.fill(at: point)
                 documentController.currentOperationPixelPoints.removeAll()
                 documentController.undoManager?.endUndoGrouping()
@@ -508,10 +508,10 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
                 switch tool {
                 case let pencil as PencilTool:
                     let point = makePixelPoint(touchLocation: touchLocation, toolSize: pencil.size)
-                    documentController.paint(colorComponents: documentController.toolColorComponents, at: point, size: pencil.size, byUser: true)
+                    documentController.paint(colorComponents: documentController.toolColorComponents, at: point, size: pencil.size, doneByUser: true)
                 case let eraser as EraserTool:
                     let point = makePixelPoint(touchLocation: touchLocation, toolSize: eraser.size)
-                    documentController.paint(colorComponents: .clear, at: point, size: eraser.size, byUser: true)
+                    documentController.paint(colorComponents: .clear, at: point, size: eraser.size, doneByUser: true)
                 case is MoveTool:
                     let dx = CGFloat((touchLocation.x - dragStartPoint!.x) / spriteZoomScale).rounded()
                     let dy = CGFloat((touchLocation.y - dragStartPoint!.y) / spriteZoomScale).rounded()

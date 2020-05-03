@@ -82,13 +82,13 @@ public class DocumentController {
                 canvasView.toolSizeChanged(size: eraser.size)
             case is EyedroperTool:
                 index = 2
-                canvasView.toolSizeChanged(size: CGSize(width: 1, height: 1))
+                canvasView.toolSizeChanged(size: PixelSize(width: 1, height: 1))
             case is FillTool:
                 index = 3
-                canvasView.toolSizeChanged(size: CGSize(width: 1, height: 1))
+                canvasView.toolSizeChanged(size: PixelSize(width: 1, height: 1))
             case is MoveTool:
                 index = 4
-                canvasView.toolSizeChanged(size: CGSize(width: 1, height: 1))
+                canvasView.toolSizeChanged(size: PixelSize(width: 1, height: 1))
             case let highlight as HighlightTool:
                 index = 5
                 canvasView.toolSizeChanged(size: highlight.size)
@@ -97,7 +97,7 @@ public class DocumentController {
                 canvasView.toolSizeChanged(size: shadow.size)
             default:
                 index = 0
-                canvasView.toolSizeChanged(size: CGSize(width: 1, height: 1))
+                canvasView.toolSizeChanged(size: PixelSize(width: 1, height: 1))
             }
             let animated = type(of: tool) != type(of: oldValue)
             toolDelegate?.selectTool(atIndex: index, animated: animated)
@@ -140,63 +140,67 @@ public class DocumentController {
         editorDelegate?.hover(at: point)
     }
     
-    public func paint(colorComponents: ColorComponents, at point: PixelPoint, size: CGSize, byUser: Bool) {
+    public func paint(colorComponents: ColorComponents, at point: PixelPoint, size: PixelSize, doneByUser: Bool) {
         
         func registerUndo(at brushPoint: PixelPoint) {
             let undoColorComponents = getColorComponents(at: brushPoint)
             undoManager?.registerUndo(withTarget: self, handler: { (target) in
-                target.paint(colorComponents: undoColorComponents, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: false)
+                target.paint(colorComponents: undoColorComponents, at: brushPoint, size: PixelSize(width: 1, height: 1), doneByUser: false)
             })
             currentOperationPixelPoints.append(brushPoint)
         }
         
         let pointInBounds: PixelPoint
-        let sizeInBounds: CGSize
-        if byUser {
-            if size == CGSize(width: 1, height: 1) {
+        let sizeInBounds: PixelSize
+        if doneByUser {
+            if size == PixelSize(width: 1, height: 1) {
                 guard point.x < context.width, point.y < context.height, 0 <= point.x, 0 <= point.y else { return }
                 pointInBounds = point
                 sizeInBounds = size
             } else {
-                guard point.x < context.width, point.y < context.height, 0 <= point.x + Int(size.width)-1, 0 <= point.y + Int(size.height)-1 else { return }
+                guard point.x < context.width, point.y < context.height, 0 <= point.x + size.width-1, 0 <= point.y + size.height-1 else { return }
                 pointInBounds = PixelPoint(x: max(0, point.x), y: max(0, point.y))
-                let newWidth = min(size.width - CGFloat(pointInBounds.x - point.x), CGFloat(context.width - pointInBounds.x))
-                let newHeight = min(size.height - CGFloat(pointInBounds.y - point.y), CGFloat(context.height - pointInBounds.y))
-                sizeInBounds = CGSize(width: newWidth, height: newHeight)
+                let newWidth = min(size.width - (pointInBounds.x - point.x), (context.width - pointInBounds.x))
+                let newHeight = min(size.height - (pointInBounds.y - point.y), (context.height - pointInBounds.y))
+                sizeInBounds = PixelSize(width: newWidth, height: newHeight)
             }
         } else {
             pointInBounds = point
             sizeInBounds = size
         }
-        let symmetricPointInBounds = PixelPoint(x: context.width - pointInBounds.x - Int(sizeInBounds.width), y: pointInBounds.y)
+        let symmetricPointInBounds = PixelPoint(x: context.width - pointInBounds.x - sizeInBounds.width, y: pointInBounds.y)
         
-        for xOffset in 0..<Int(sizeInBounds.width) {
-            for yOffset in 0..<Int(sizeInBounds.height) {
+        let cdp = contextDataManager.dataPointer
+        
+        for xOffset in 0..<(sizeInBounds.width) {
+            for yOffset in 0..<(sizeInBounds.height) {
                 let brushPoint = PixelPoint(x: pointInBounds.x + xOffset, y: pointInBounds.y + yOffset)
-                if byUser {
+                
+                if doneByUser {
                     registerUndo(at: brushPoint)
                     if horizontalSymmetry {
                         let brushPoint = PixelPoint(x: symmetricPointInBounds.x + xOffset, y: symmetricPointInBounds.y + yOffset)
                         registerUndo(at: brushPoint)
+                        let offset = contextDataManager.dataOffset(for: brushPoint)
+                        cdp[offset+2] = colorComponents.red
+                        cdp[offset+1] = colorComponents.green
+                        cdp[offset] = colorComponents.blue
+                        cdp[offset+3] = colorComponents.alpha
                     }
                 }
+                
+                let offset = contextDataManager.dataOffset(for: brushPoint)
+                cdp[offset+2] = colorComponents.red
+                cdp[offset+1] = colorComponents.green
+                cdp[offset] = colorComponents.blue
+                cdp[offset+3] = colorComponents.alpha
             }
         }
         
-        let fillRect = CGRect(origin: CGPoint(x: pointInBounds.x, y: pointInBounds.y), size: sizeInBounds)
-        let color = UIColor(components: colorComponents)
-        color.setFill()
-        context.fill(fillRect)
-        if byUser {
-            if 127 < colorComponents.alpha {
-                recentColorDelegate?.usedColor(components: colorComponents)
-            }
-            if horizontalSymmetry {
-                let symmetricRect = CGRect(origin: CGPoint(x: symmetricPointInBounds.x, y: symmetricPointInBounds.y), size: sizeInBounds)
-                context.fill(symmetricRect)
-            }
+        if doneByUser, 127 < colorComponents.alpha {
+            recentColorDelegate?.usedColor(components: colorComponents)
         }
-        paintParticlesDelegate?.painted(context: context, color: color, at: point)
+        paintParticlesDelegate?.painted(context: context, color: UIColor(components: colorComponents), at: point)
     }
     
     public func fillPath() {
@@ -240,24 +244,24 @@ public class DocumentController {
         }
     }
     
-    public func highlight(at point: PixelPoint, size: CGSize) {
-        for xOffset in 0..<Int(size.width) {
-            for yOffset in 0..<Int(size.height) {
+    public func highlight(at point: PixelPoint, size: PixelSize) {
+        for xOffset in 0..<(size.width) {
+            for yOffset in 0..<(size.height) {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
                 let highlightComponents = (palette ?? Palette.defaultPalette).highlight(forColorComponents: getColorComponents(at: brushPoint))
-                paint(colorComponents: highlightComponents, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
+                paint(colorComponents: highlightComponents, at: brushPoint, size: PixelSize(width: 1, height: 1), doneByUser: true)
             }
         }
     }
     
-    public func shadow(at point: PixelPoint, size: CGSize) {
-        for xOffset in 0..<Int(size.width) {
-            for yOffset in 0..<Int(size.height) {
+    public func shadow(at point: PixelPoint, size: PixelSize) {
+        for xOffset in 0..<(size.width) {
+            for yOffset in 0..<(size.height) {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
                 let shadowComponents = (palette ?? Palette.defaultPalette).shadow(forColorComponents: getColorComponents(at: brushPoint))
-                paint(colorComponents: shadowComponents, at: brushPoint, size: CGSize(width: 1, height: 1), byUser: true)
+                paint(colorComponents: shadowComponents, at: brushPoint, size: PixelSize(width: 1, height: 1), doneByUser: true)
             }
         }
     }
@@ -414,13 +418,13 @@ public class DocumentController {
         undoManager?.beginUndoGrouping()
         if let colorComponents = colorComponents {
             for point in outline {
-                paint(colorComponents: colorComponents, at: point.point, size: CGSize(width: 1, height: 1), byUser: false)
+                paint(colorComponents: colorComponents, at: point.point, size: PixelSize(width: 1, height: 1), doneByUser: false)
             }
         } else {
             // Automatic color
             for point in outline {
                 let shadowColor = (palette ?? Palette.defaultPalette).shadow(forColorComponents: point.colorComponents)
-                paint(colorComponents: shadowColor, at: point.point, size: CGSize(width: 1, height: 1), byUser: false)
+                paint(colorComponents: shadowColor, at: point.point, size: PixelSize(width: 1, height: 1), doneByUser: false)
             }
         }
         undoManager?.endUndoGrouping()
