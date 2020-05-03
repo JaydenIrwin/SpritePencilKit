@@ -12,6 +12,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     
     public static let defaultMinimumZoomScale: CGFloat = 1.0 // Must be low since if current < minimum, view will not zoom in.
     public static let defaultMaximumZoomScale: CGFloat = 32.0
+    static let hoverViewBorderWidth: CGFloat = 0.1
     
     public enum FingerAction: String {
         case ignore, move, eyedrop
@@ -23,15 +24,15 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     public var checkerboardView: UIImageView!
     public var spriteView: UIImageView!
     public var hoverView: UIView = {
-        let view = UIView(frame: CGRect(origin: .zero, size: CGSize(width: 2.05, height: 2.05)))
-        view.layer.borderWidth = 0.1
+        let view = UIView(frame: CGRect(origin: .zero, size: CGSize(width: 2 + CanvasView.hoverViewBorderWidth/2, height: 2 + CanvasView.hoverViewBorderWidth/2)))
+        view.layer.borderWidth = CanvasView.hoverViewBorderWidth
         view.layer.borderColor = UIColor.label.cgColor
         view.isHidden = true
         return view
     }()
     public var symmetricHoverView: UIView = {
-        let view = UIView(frame: CGRect(origin: .zero, size: CGSize(width: 2.05, height: 2.05)))
-        view.layer.borderWidth = 0.1
+        let view = UIView(frame: CGRect(origin: .zero, size: CGSize(width: 2 + CanvasView.hoverViewBorderWidth/2, height: 2 + CanvasView.hoverViewBorderWidth/2)))
+        view.layer.borderWidth = CanvasView.hoverViewBorderWidth
         view.layer.borderColor = UIColor.label.cgColor
         view.isHidden = true
         return view
@@ -179,7 +180,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     
     public func toolSizeChanged(size: PixelSize) {
         toolSizeCopy = size
-        hoverView.bounds.size = CGSize(width: CGFloat(size.width * 2) + 0.05, height: CGFloat(size.height * 2) + 0.05)
+        hoverView.bounds.size = CGSize(width: CGFloat(size.width) * spriteZoomScale + CanvasView.hoverViewBorderWidth/2, height: CGFloat(size.height) * spriteZoomScale + CanvasView.hoverViewBorderWidth/2)
         symmetricHoverView.bounds.size = hoverView.bounds.size
     }
     
@@ -361,10 +362,10 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             documentController.hover(at: nil)
             return
         }
-        hoverView.frame.origin = CGPoint(x: CGFloat(point.x * 2) - 0.05, y: CGFloat(point.y * 2) - 0.05)
+        hoverView.frame.origin = CGPoint(x: CGFloat(point.x) * spriteZoomScale - CanvasView.hoverViewBorderWidth/2, y: CGFloat(point.y) * spriteZoomScale - CanvasView.hoverViewBorderWidth/2)
         hoverView.isHidden = false
         if documentController.horizontalSymmetry {
-            let symmetricPoint = CGPoint(x: CGFloat(documentController.context.width * 2) - CGFloat(point.x * 2) - 0.05 - CGFloat(toolSizeCopy.width * 2), y: hoverView.frame.origin.y)
+            let symmetricPoint = CGPoint(x: CGFloat(documentController.context.width - point.x - toolSizeCopy.width) * spriteZoomScale - CanvasView.hoverViewBorderWidth/2, y: hoverView.frame.origin.y)
             symmetricHoverView.frame.origin = symmetricPoint
             symmetricHoverView.isHidden = false
         }
