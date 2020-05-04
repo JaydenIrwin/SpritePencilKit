@@ -80,7 +80,11 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     public var applePencilCanEyedrop = true
     public var shouldFillPaths = false
     public var userWillStartZooming = false
-    public var spriteZoomScale: CGFloat = 2.0 // Sprite view is 2x scale of checkerboard view
+    public var spriteZoomScale: CGFloat = 2.0 { // Sprite view is normally 2x scale of checkerboard view
+        didSet {
+            toolSizeChanged(size: toolSizeCopy)
+        }
+    }
     public var dragStartPoint: CGPoint?
     public var spriteCopy: UIImage! {
         didSet {
@@ -117,11 +121,11 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         spriteView.addSubview(hoverView)
         spriteView.addSubview(symmetricHoverView)
         
-        addConstraints([
-            NSLayoutConstraint(item: spriteView!, attribute: .top, relatedBy: .equal, toItem: checkerboardView, attribute: .top, multiplier: 1.0, constant: 0.0),
-            NSLayoutConstraint(item: spriteView!, attribute: .bottom, relatedBy: .equal, toItem: checkerboardView, attribute: .bottom, multiplier: 1.0, constant: 0.0),
-            NSLayoutConstraint(item: spriteView!, attribute: .leading, relatedBy: .equal, toItem: checkerboardView, attribute: .leading, multiplier: 1.0, constant: 0.0),
-            NSLayoutConstraint(item: spriteView!, attribute: .trailing, relatedBy: .equal, toItem: checkerboardView, attribute: .trailing, multiplier: 1.0, constant: 0.0)
+        NSLayoutConstraint.activate([
+            spriteView.topAnchor.constraint(equalTo: checkerboardView.topAnchor),
+            spriteView.bottomAnchor.constraint(equalTo: checkerboardView.bottomAnchor),
+            spriteView.leadingAnchor.constraint(equalTo: checkerboardView.leadingAnchor),
+            spriteView.trailingAnchor.constraint(equalTo: checkerboardView.trailingAnchor)
         ])
         
         let undo = UISwipeGestureRecognizer(target: self, action: #selector(doUndo))
@@ -185,7 +189,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     }
     
     public func drawnPointsAreCancelable() -> Bool {
-        guard !documentController.currentOperationPixelPoints.isEmpty else { return false }
+//        guard !documentController.currentOperationPixelPoints.isEmpty else { return false }
         let toolSize: PixelSize
         switch tool {
         case let pencil as PencilTool:
@@ -475,7 +479,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         
         canvasDelegate?.canvasViewDidEndUsingTool(self)
         
-        if drawnPointsAreCancelableBool {
+        if drawnPointsAreCancelableBool, !documentController.currentOperationPixelPoints.isEmpty {
             documentController.undoManager?.undo()
             documentController.refresh()
         }
@@ -602,7 +606,9 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             return
         }
         
-        userWillStartZooming = false
+        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false, block: { _ in
+            self.userWillStartZooming = false
+        })
     }
     
 }

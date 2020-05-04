@@ -151,7 +151,6 @@ public class DocumentController {
             undoManager?.registerUndo(withTarget: self, handler: { (target) in
                 target.basicPaint(colorComponents: undoColorComponents, at: brushPoint)
             })
-            currentOperationPixelPoints.append(brushPoint)
         }
         
         let pointInBounds: PixelPoint
@@ -180,9 +179,11 @@ public class DocumentController {
                 
                 if doneByUser {
                     registerUndo(at: brushPoint)
+                    currentOperationPixelPoints.append(brushPoint)
                     if horizontalSymmetry {
                         let brushPoint = PixelPoint(x: symmetricPointInBounds.x + xOffset, y: symmetricPointInBounds.y + yOffset)
                         registerUndo(at: brushPoint)
+                        currentOperationPixelPoints.append(brushPoint)
                         basicPaint(colorComponents: colorComponents, at: brushPoint)
                     }
                 }
