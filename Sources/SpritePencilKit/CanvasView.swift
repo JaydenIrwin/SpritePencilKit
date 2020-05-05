@@ -103,6 +103,8 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         maximumZoomScale = CanvasView.defaultMaximumZoomScale
         zoomScale = 4.0
         scrollsToTop = false
+        showsVerticalScrollIndicator = false
+        showsHorizontalScrollIndicator = false
         
         let pencilInteraction = UIPencilInteraction()
         pencilInteraction.delegate = self
@@ -466,7 +468,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     
     override public func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard validateTouchesForCurrentTool(touches) else { return }
-        let drawnPointsAreCancelableBool = drawnPointsAreCancelable()
+        let shouldRemoveDrawnPoints = drawnPointsAreCancelable() && !documentController.currentOperationPixelPoints.isEmpty
         
         documentController.currentOperationPixelPoints.removeAll()
         if documentController.undoManager?.groupingLevel == 1 {
@@ -479,7 +481,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         
         canvasDelegate?.canvasViewDidEndUsingTool(self)
         
-        if drawnPointsAreCancelableBool, !documentController.currentOperationPixelPoints.isEmpty {
+        if shouldRemoveDrawnPoints {
             documentController.undoManager?.undo()
             documentController.refresh()
         }
@@ -562,7 +564,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         userWillStartZooming = shouldStartZooming && !zoomEnabledOverride
     }
     
-    public func scrollViewDidZoom(_ scrollView: UIScrollView) {
+    public func scrollViewDidZoom(_ scrollView: UIScrollView) { // Called many times while zooming
         
         func centerContent() {
             if (contentSize.width < bounds.size.width) {
