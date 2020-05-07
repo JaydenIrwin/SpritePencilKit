@@ -198,7 +198,7 @@ public class DocumentController {
         paintParticlesDelegate?.painted(context: context, color: UIColor(components: colorComponents), at: point)
     }
     
-    public func fillPath() {
+    public func fillDrawnPath() {
         guard 7 <= currentOperationPixelPoints.count else { return }
         let firstPixelPoint = currentOperationPixelPoints.removeFirst()
         guard abs(firstPixelPoint.x - currentOperationPixelPoints.last!.x) <= 1, abs(firstPixelPoint.y - currentOperationPixelPoints.last!.y) <= 1 else { return }
@@ -287,16 +287,17 @@ public class DocumentController {
             
             currentOperationPixelPoints.append(pixelPoint)
             
-            stack.append(PixelPoint(x: pixelPoint.x+1, y: pixelPoint.y))
-            stack.append(PixelPoint(x: pixelPoint.x-1, y: pixelPoint.y))
-            stack.append(PixelPoint(x: pixelPoint.x, y: pixelPoint.y+1))
-            stack.append(PixelPoint(x: pixelPoint.x, y: pixelPoint.y-1))
+            stack += [
+                PixelPoint(x: pixelPoint.x+1, y: pixelPoint.y),
+                PixelPoint(x: pixelPoint.x-1, y: pixelPoint.y),
+                PixelPoint(x: pixelPoint.x, y: pixelPoint.y+1),
+                PixelPoint(x: pixelPoint.x, y: pixelPoint.y-1)
+            ]
             
             checkedPixels += 1
         }
         
-        currentOperationPixelPoints.removeAll()
-        refresh()
+//        refresh() // Not working
     }
     
     public func flip(vertically: Bool) {

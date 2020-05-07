@@ -319,18 +319,15 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     }
     
     @objc public func doUndo() {
-        if documentController.undoManager?.groupingLevel == 1 {
+        if 0 < documentController.undoManager?.groupingLevel ?? 0 {
             documentController.undoManager?.endUndoGrouping()
             documentController.undoManager?.undo()
-            documentController.refresh()
         }
         documentController.undo()
     }
     @objc public func doRedo() {
-        if documentController.undoManager?.groupingLevel == 1 {
+        if 0 < documentController.undoManager?.groupingLevel ?? 0 {
             documentController.undoManager?.endUndoGrouping()
-//            documentController.undoManager?.redo()
-//            documentController.refresh()
         }
         documentController.redo()
     }
@@ -400,7 +397,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         guard validateTouchesForCurrentTool(touches) else { return }
         
         switch tool {
-        case is EyedroperTool:
+        case is EyedroperTool, is FillTool:
             break
         case is MoveTool:
             spriteCopy = UIImage(cgImage: documentController.context.makeImage()!)
@@ -435,7 +432,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             switch tool {
             case is PencilTool:
                 if shouldFillPaths {
-                    documentController.fillPath()
+                    documentController.fillDrawnPath()
                 }
                 documentController.currentOperationPixelPoints.removeAll()
                 documentController.undoManager?.endUndoGrouping()
@@ -443,9 +440,11 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
                 break
             case is FillTool:
                 let point = makePixelPoint(touchLocation: touches.first!.location(in: spriteView), toolSize: PixelSize(width: 1, height: 1))
+                documentController.undoManager?.beginUndoGrouping()
                 documentController.fill(at: point)
                 documentController.currentOperationPixelPoints.removeAll()
                 documentController.undoManager?.endUndoGrouping()
+                documentController.refresh()
             default:
                 documentController.currentOperationPixelPoints.removeAll()
                 documentController.undoManager?.endUndoGrouping()
@@ -471,7 +470,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         let shouldRemoveDrawnPoints = drawnPointsAreCancelable() && !documentController.currentOperationPixelPoints.isEmpty
         
         documentController.currentOperationPixelPoints.removeAll()
-        if documentController.undoManager?.groupingLevel == 1 {
+        if 0 < documentController.undoManager?.groupingLevel ?? 0 {
             documentController.undoManager?.endUndoGrouping()
         }
         
