@@ -51,6 +51,7 @@ public class DocumentController {
     public var currentOperationPixelPoints = [PixelPoint]()
     public var fillFromColorComponents: ColorComponents?
     public var contextDataManager: ContextDataManager!
+    public var verticalSymmetry = false
     public var horizontalSymmetry = false
     
     // Tools
@@ -171,7 +172,6 @@ public class DocumentController {
             pointInBounds = point
             sizeInBounds = size
         }
-        let symmetricPointInBounds = PixelPoint(x: context.width - pointInBounds.x - sizeInBounds.width, y: pointInBounds.y)
         
         for xOffset in 0..<(sizeInBounds.width) {
             for yOffset in 0..<(sizeInBounds.height) {
@@ -180,8 +180,23 @@ public class DocumentController {
                 if doneByUser {
                     registerUndo(at: brushPoint)
                     currentOperationPixelPoints.append(brushPoint)
+                    if verticalSymmetry {
+                        let verticalSymmetricPointInBounds = PixelPoint(x: pointInBounds.x, y: context.height - pointInBounds.y - sizeInBounds.height)
+                        let brushPoint = PixelPoint(x: verticalSymmetricPointInBounds.x + xOffset, y: verticalSymmetricPointInBounds.y + yOffset)
+                        registerUndo(at: brushPoint)
+                        currentOperationPixelPoints.append(brushPoint)
+                        basicPaint(colorComponents: colorComponents, at: brushPoint)
+                        if horizontalSymmetry {
+                            let verticalAndHorizontalSymmetricPointInBounds = PixelPoint(x: context.width - pointInBounds.x - sizeInBounds.width, y: verticalSymmetricPointInBounds.y)
+                            let brushPoint = PixelPoint(x: verticalAndHorizontalSymmetricPointInBounds.x + xOffset, y: verticalAndHorizontalSymmetricPointInBounds.y + yOffset)
+                            registerUndo(at: brushPoint)
+                            currentOperationPixelPoints.append(brushPoint)
+                            basicPaint(colorComponents: colorComponents, at: brushPoint)
+                        }
+                    }
                     if horizontalSymmetry {
-                        let brushPoint = PixelPoint(x: symmetricPointInBounds.x + xOffset, y: symmetricPointInBounds.y + yOffset)
+                        let horizontalSymmetricPointInBounds = PixelPoint(x: context.width - pointInBounds.x - sizeInBounds.width, y: pointInBounds.y)
+                        let brushPoint = PixelPoint(x: horizontalSymmetricPointInBounds.x + xOffset, y: horizontalSymmetricPointInBounds.y + yOffset)
                         registerUndo(at: brushPoint)
                         currentOperationPixelPoints.append(brushPoint)
                         basicPaint(colorComponents: colorComponents, at: brushPoint)
@@ -373,7 +388,7 @@ public class DocumentController {
     }
     
     public func outline(colorComponents: ColorComponents? = nil) {
-        var outline = [(point: PixelPoint, colorComponents: ColorComponents)]()
+        var outline = [(point: PixelPoint, neighborColorComponents: ColorComponents)]()
         for y in 0..<context.height {
             for x in 0..<context.width {
                 let point = PixelPoint(x: x, y: y)
@@ -407,16 +422,16 @@ public class DocumentController {
         if let colorComponents = colorComponents {
             for point in outline {
                 undoManager?.registerUndo(withTarget: self, handler: { (target) in
-                    target.basicPaint(colorComponents: point.colorComponents, at: point.point)
+                    target.basicPaint(colorComponents: .clear, at: point.point)
                 })
                 basicPaint(colorComponents: colorComponents, at: point.point)
             }
         } else {
             // Automatic color
             for point in outline {
-                let shadowColor = (palette ?? Palette.defaultPalette).shadow(forColorComponents: point.colorComponents)
+                let shadowColor = (palette ?? Palette.defaultPalette).shadow(forColorComponents: point.neighborColorComponents)
                 undoManager?.registerUndo(withTarget: self, handler: { (target) in
-                    target.basicPaint(colorComponents: point.colorComponents, at: point.point)
+                    target.basicPaint(colorComponents: .clear, at: point.point)
                 })
                 basicPaint(colorComponents: shadowColor, at: point.point)
             }

@@ -30,13 +30,6 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         view.isHidden = true
         return view
     }()
-    public var symmetricHoverView: UIView = {
-        let view = UIView(frame: CGRect(origin: .zero, size: CGSize(width: 2 + CanvasView.hoverViewBorderWidth/2, height: 2 + CanvasView.hoverViewBorderWidth/2)))
-        view.layer.borderWidth = CanvasView.hoverViewBorderWidth
-        view.layer.borderColor = UIColor.label.cgColor
-        view.isHidden = true
-        return view
-    }()
     public var toolSizeCopy = PixelSize(width: 1, height: 1)
     override public var bounds: CGRect {
         didSet {
@@ -51,7 +44,8 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     public var tileGridEnabled = false
     public var tileGridLayer: CAShapeLayer?
     public var pixelGridLayer: CAShapeLayer?
-    public var symmetryLineLayer: CALayer?
+    public var verticalSymmetryLineLayer: CALayer?
+    public var horizontalSymmetryLineLayer: CALayer?
     
     // General
     public var tool: Tool {
@@ -121,7 +115,6 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         addSubview(checkerboardView)
         checkerboardView.addSubview(spriteView)
         spriteView.addSubview(hoverView)
-        spriteView.addSubview(symmetricHoverView)
         
         NSLayoutConstraint.activate([
             spriteView.topAnchor.constraint(equalTo: checkerboardView.topAnchor),
@@ -187,7 +180,6 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     public func toolSizeChanged(size: PixelSize) {
         toolSizeCopy = size
         hoverView.bounds.size = CGSize(width: CGFloat(size.width) * spriteZoomScale + CanvasView.hoverViewBorderWidth/2, height: CGFloat(size.height) * spriteZoomScale + CanvasView.hoverViewBorderWidth/2)
-        symmetricHoverView.bounds.size = hoverView.bounds.size
     }
     
     public func drawnPointsAreCancelable() -> Bool {
@@ -297,17 +289,29 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             pixelGridLayer?.removeFromSuperlayer()
             pixelGridLayer = nil
         }
-        if documentController.horizontalSymmetry {
-            if symmetryLineLayer == nil {
-                symmetryLineLayer = CALayer()
-                symmetryLineLayer?.frame = CGRect(x: (CGFloat(documentWidth) * spriteZoomScale/2.0) - 0.1, y: 0, width: 0.2, height: CGFloat(documentHeight) * spriteZoomScale)
-                symmetryLineLayer?.borderWidth = 0.2
-                symmetryLineLayer?.borderColor = tintColor.cgColor
-                spriteView.layer.addSublayer(symmetryLineLayer!)
+        if documentController.verticalSymmetry {
+            if verticalSymmetryLineLayer == nil {
+                verticalSymmetryLineLayer = CALayer()
+                verticalSymmetryLineLayer?.frame = CGRect(x: 0, y: (CGFloat(documentHeight) * spriteZoomScale/2.0) - 0.1, width: CGFloat(documentWidth) * spriteZoomScale, height: 0.2)
+                verticalSymmetryLineLayer?.borderWidth = 0.2
+                verticalSymmetryLineLayer?.borderColor = tintColor.cgColor
+                spriteView.layer.addSublayer(verticalSymmetryLineLayer!)
             }
         } else {
-            symmetryLineLayer?.removeFromSuperlayer()
-            symmetryLineLayer = nil
+            verticalSymmetryLineLayer?.removeFromSuperlayer()
+            verticalSymmetryLineLayer = nil
+        }
+        if documentController.horizontalSymmetry {
+            if horizontalSymmetryLineLayer == nil {
+                horizontalSymmetryLineLayer = CALayer()
+                horizontalSymmetryLineLayer?.frame = CGRect(x: (CGFloat(documentWidth) * spriteZoomScale/2.0) - 0.1, y: 0, width: 0.2, height: CGFloat(documentHeight) * spriteZoomScale)
+                horizontalSymmetryLineLayer?.borderWidth = 0.2
+                horizontalSymmetryLineLayer?.borderColor = tintColor.cgColor
+                spriteView.layer.addSublayer(horizontalSymmetryLineLayer!)
+            }
+        } else {
+            horizontalSymmetryLineLayer?.removeFromSuperlayer()
+            horizontalSymmetryLineLayer = nil
         }
     }
     
@@ -352,7 +356,6 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             updateHoverLocation(at: point)
         case .ended, .cancelled:
             hoverView.isHidden = true
-            symmetricHoverView.isHidden = true
         default:
             break
         }
@@ -361,17 +364,11 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     func updateHoverLocation(at point: PixelPoint) {
         guard 0 <= point.x, 0 <= point.y, point.x < documentController.context.width, point.y < documentController.context.height else {
             hoverView.isHidden = true
-            symmetricHoverView.isHidden = true
             documentController.hover(at: nil)
             return
         }
         hoverView.frame.origin = CGPoint(x: CGFloat(point.x) * spriteZoomScale - CanvasView.hoverViewBorderWidth/2, y: CGFloat(point.y) * spriteZoomScale - CanvasView.hoverViewBorderWidth/2)
         hoverView.isHidden = false
-        if documentController.horizontalSymmetry {
-            let symmetricPoint = CGPoint(x: CGFloat(documentController.context.width - point.x - toolSizeCopy.width) * spriteZoomScale - CanvasView.hoverViewBorderWidth/2, y: hoverView.frame.origin.y)
-            symmetricHoverView.frame.origin = symmetricPoint
-            symmetricHoverView.isHidden = false
-        }
         documentController.hover(at: point)
     }
     
@@ -435,7 +432,9 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
                     documentController.fillDrawnPath()
                 }
                 documentController.currentOperationPixelPoints.removeAll()
-                documentController.undoManager?.endUndoGrouping()
+                if 0 < documentController.undoManager?.groupingLevel ?? 0 {
+                    documentController.undoManager?.endUndoGrouping()
+                }
             case is MoveTool: //or is EyedroperTool
                 break
             case is FillTool:
@@ -443,11 +442,15 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
                 documentController.undoManager?.beginUndoGrouping()
                 documentController.fill(at: point)
                 documentController.currentOperationPixelPoints.removeAll()
-                documentController.undoManager?.endUndoGrouping()
+                if 0 < documentController.undoManager?.groupingLevel ?? 0 {
+                    documentController.undoManager?.endUndoGrouping()
+                }
                 documentController.refresh()
             default:
                 documentController.currentOperationPixelPoints.removeAll()
-                documentController.undoManager?.endUndoGrouping()
+                if 0 < documentController.undoManager?.groupingLevel ?? 0 {
+                    documentController.undoManager?.endUndoGrouping()
+                }
             }
             
             switch touches.first!.type {
@@ -459,7 +462,6 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
                 }
             }
             hoverView.isHidden = true
-            symmetricHoverView.isHidden = true
             documentController.hover(at: nil)
         }
         canvasDelegate?.canvasViewDidEndUsingTool(self)
@@ -475,7 +477,6 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
         
         hoverView.isHidden = true
-        symmetricHoverView.isHidden = true
         documentController.hover(at: nil)
         
         canvasDelegate?.canvasViewDidEndUsingTool(self)
