@@ -535,9 +535,10 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             }
             documentController.refresh()
             
-            let touchLocation = touches.first!.location(in: spriteView)
-            let point = makePixelPoint(touchLocation: touchLocation, toolSize: toolSizeCopy)
-            updateHoverLocation(at: point)
+            if let touchLocation = touches.first?.location(in: spriteView) {
+                let point = makePixelPoint(touchLocation: touchLocation, toolSize: toolSizeCopy)
+                updateHoverLocation(at: point)
+            }
         default:
             break
         }
