@@ -13,7 +13,7 @@ public protocol ToolDelegate: class {
     func selectTool(atIndex index: Int, animated: Bool)
 }
 public protocol EditorDelegate: class {
-    func hover(at point: PixelPoint?)
+    var hoverPoint: PixelPoint? { get set }
     func eyedropColor(colorComponents components: ColorComponents, at point: PixelPoint)
     func refreshUndo()
 }
@@ -53,6 +53,11 @@ public class DocumentController {
     public var contextDataManager: ContextDataManager!
     public var verticalSymmetry = false
     public var horizontalSymmetry = false
+    public var hoverPoint: PixelPoint? {
+        didSet {
+            editorDelegate?.hoverPoint = hoverPoint
+        }
+    }
     
     // Tools
     public var pencilTool = PencilTool(width: 1)
@@ -131,10 +136,6 @@ public class DocumentController {
         undoManager?.redo()
         currentOperationPixelPoints.removeAll()
         refresh()
-    }
-    
-    public func hover(at point: PixelPoint?) {
-        editorDelegate?.hover(at: point)
     }
     
     func basicPaint(colorComponents: ColorComponents, at point: PixelPoint) {

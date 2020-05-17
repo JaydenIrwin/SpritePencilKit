@@ -201,8 +201,8 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         return (documentController.currentOperationPixelPoints.count <= maximumCancelableDrawnPoints)
     }
     
-    public func zoomToFit(size: CGSize? = nil) {
-        let viewSize = size ?? bounds.size
+    public func zoomToFit() {
+        let viewSize = safeAreaLayoutGuide.layoutFrame.size
         
         let viewRatio = viewSize.width / viewSize.height
         let spriteSize = CGSize(width: documentController.context.width, height: documentController.context.height)
@@ -364,12 +364,12 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     func updateHoverLocation(at point: PixelPoint) {
         guard 0 <= point.x, 0 <= point.y, point.x < documentController.context.width, point.y < documentController.context.height else {
             hoverView.isHidden = true
-            documentController.hover(at: nil)
+            documentController.hoverPoint = nil
             return
         }
         hoverView.frame.origin = CGPoint(x: CGFloat(point.x) * spriteZoomScale - CanvasView.hoverViewBorderWidth/2, y: CGFloat(point.y) * spriteZoomScale - CanvasView.hoverViewBorderWidth/2)
         hoverView.isHidden = false
-        documentController.hover(at: point)
+        documentController.hoverPoint = point
     }
     
     override public func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -462,7 +462,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
                 }
             }
             hoverView.isHidden = true
-            documentController.hover(at: nil)
+            documentController.hoverPoint = nil
         }
         canvasDelegate?.canvasViewDidEndUsingTool(self)
     }
@@ -477,7 +477,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
         
         hoverView.isHidden = true
-        documentController.hover(at: nil)
+        documentController.hoverPoint = nil
         
         canvasDelegate?.canvasViewDidEndUsingTool(self)
         
@@ -567,22 +567,22 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     public func scrollViewDidZoom(_ scrollView: UIScrollView) { // Called many times while zooming
         
         func centerContent() {
-            if (contentSize.width < bounds.size.width) {
-                contentOffset.x = (contentSize.width - bounds.size.width) / 2
+            if (contentSize.width < safeAreaLayoutGuide.layoutFrame.width) {
+                contentOffset.x = ((contentSize.width - safeAreaLayoutGuide.layoutFrame.width) / 2) - safeAreaInsets.left + safeAreaInsets.right
             }
-            if (contentSize.height < bounds.size.height) {
-                contentOffset.y = (contentSize.height - bounds.size.height) / 2
+            if (contentSize.height < safeAreaLayoutGuide.layoutFrame.height) {
+                contentOffset.y = ((contentSize.height - safeAreaLayoutGuide.layoutFrame.height) / 2) - safeAreaInsets.top + safeAreaInsets.bottom
             }
             
-            var x: CGFloat = 0.0
-            var y: CGFloat = 0.0
-            if (contentSize.width < bounds.size.width) {
-                x = (bounds.size.width - contentSize.width) / 2.0
+            var h: CGFloat = 0.0
+            var v: CGFloat = 0.0
+            if (contentSize.width < bounds.width) {
+                h = (bounds.width - contentSize.width) / 2.0
             }
-            if (contentSize.height < bounds.size.height) {
-                y = (bounds.size.height - contentSize.height) / 2.0
+            if (contentSize.height < bounds.height) {
+                v = (bounds.height - contentSize.height) / 2.0
             }
-            contentInset = UIEdgeInsets(top: y, left: x, bottom: y, right: x)
+            contentInset = UIEdgeInsets(top: v, left: h, bottom: v, right: h)
         }
         
         centerContent()
@@ -594,16 +594,16 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         let thresholdToSnap: CGFloat = 0.12
         let zoomScaleDistanceRange = 1.0-thresholdToSnap...1.0+thresholdToSnap
         
-        let contentWidthFraction = bounds.width / (view.bounds.width * zoomScale)
+        let contentWidthFraction = safeAreaLayoutGuide.layoutFrame.width / (view.safeAreaLayoutGuide.layoutFrame.width * zoomScale)
         if zoomScaleDistanceRange.contains(contentWidthFraction) {
-            let zoom = (bounds.width / view.bounds.width)
+            let zoom = (safeAreaLayoutGuide.layoutFrame.width / view.safeAreaLayoutGuide.layoutFrame.width)
             setZoomScale(zoom, animated: true)
             return
         }
         
-        let contentHeightFraction = bounds.height / (view.bounds.height * zoomScale)
+        let contentHeightFraction = safeAreaLayoutGuide.layoutFrame.height / (view.safeAreaLayoutGuide.layoutFrame.height * zoomScale)
         if zoomScaleDistanceRange.contains(contentHeightFraction) {
-            let zoom = (bounds.height / view.bounds.height)
+            let zoom = (safeAreaLayoutGuide.layoutFrame.height / view.safeAreaLayoutGuide.layoutFrame.height)
             setZoomScale(zoom, animated: true)
             return
         }
