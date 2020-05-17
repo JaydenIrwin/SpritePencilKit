@@ -319,7 +319,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         let xOffset = CGFloat(toolSize.width-1) / 2
         let yOffset = CGFloat(toolSize.height-1) / 2
         // Returns the top left pixel of the rect of pixels.
-        return PixelPoint(x: Int(floor((touchLocation.x - xOffset) / spriteZoomScale)), y: Int(floor((touchLocation.y - yOffset) / spriteZoomScale)))
+        return PixelPoint(x: Int(floor((touchLocation.x / spriteZoomScale) - xOffset)), y: Int(floor((touchLocation.y / spriteZoomScale) - yOffset)))
     }
     
     @objc public func doUndo() {
