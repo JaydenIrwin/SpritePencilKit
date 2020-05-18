@@ -10,11 +10,11 @@ import UIKit
 
 public struct Palette: Equatable {
     
-    public enum Special {
+    public enum SpecialCase {
         case rrggbb, hhhhssbb, rrrgggbb
     }
     
-    public static let sp16 = Palette(name: "SP 16", special: nil, colors: {
+    public static let sp16 = Palette(name: "SP 16", specialCase: nil, colors: {
         let rgb: [(r: UInt8, g: UInt8, b: UInt8)] = [
             (255, 255, 255),(170, 170, 170),(85, 85, 85),(0, 0, 0),
             (178, 36, 25),(255, 51, 41),(255, 148, 0),(255, 204, 0),
@@ -23,7 +23,7 @@ public struct Palette: Equatable {
         ]
         return rgb.map({ ColorComponents(red: $0.r, green: $0.g, blue: $0.b, alpha: 255) })
     }())
-    public static let rrggbb = Palette(name: "RRGGBB", special: .rrggbb, colors: {
+    public static let rrggbb = Palette(name: "RRGGBB", specialCase: .rrggbb, colors: {
         var colors = [ColorComponents]()
         for red in 0..<4 {
                 for green in 0..<4 {
@@ -42,7 +42,7 @@ public struct Palette: Equatable {
         //            }
         return colors
     }())
-    public static let hhhhssbb = Palette(name: "HHHHSSBB", special: .hhhhssbb, colors: {
+    public static let hhhhssbb = Palette(name: "HHHHSSBB", specialCase: .hhhhssbb, colors: {
         var colors = [UIColor]()
         for saturation in stride(from: CGFloat(1.0), to: 0.33333, by: -0.33333) {
             for brightness in stride(from: CGFloat(1.0), to: 0.33333, by: -0.33333) {
@@ -63,7 +63,7 @@ public struct Palette: Equatable {
             return ColorComponents(red: UInt8(red*255), green: UInt8(green*255), blue: UInt8(blue*255), alpha: 255)
         })
     }())
-    public static let rrrgggbb = Palette(name: "RRRGGGBB", special: .rrrgggbb, colors: {
+    public static let rrrgggbb = Palette(name: "RRRGGGBB", specialCase: .rrrgggbb, colors: {
         var colors = [ColorComponents]()
         for red in 0..<8 {
                 for green in 0..<8 {
@@ -84,9 +84,9 @@ public struct Palette: Equatable {
     }())
     
     public static var appPalettes = [Palette]()
-    public static var customPalettes = [Palette]()
+    public static var userPalettes = [Palette]()
     public static var palettes: [Palette] {
-        return customPalettes + appPalettes + [Palette.sp16, Palette.rrggbb, Palette.hhhhssbb, Palette.rrrgggbb]
+        return userPalettes + appPalettes + [Palette.sp16, Palette.rrggbb, Palette.hhhhssbb, Palette.rrrgggbb]
     }
     public static var defaultPalette = Palette.sp16
     
@@ -95,17 +95,40 @@ public struct Palette: Equatable {
     }
     
     public let name: String
-    public let special: Special?
+    public let specialCase: SpecialCase?
     public let colors: [ColorComponents]
     
-    public init(name: String, special: Special?, colors: [ColorComponents]) {
+    public init(name: String, specialCase: SpecialCase?, colors: [ColorComponents]) {
         self.name = name
-        self.special = special
+        self.specialCase = specialCase
         self.colors = colors
     }
     
+    public init?(name: String, image: UIImage) {
+        guard image.size.height == 1 else { return nil }
+        self.name = name
+        self.specialCase = nil
+        
+        UIGraphicsBeginImageContext(image.size)
+        image.draw(at: .zero)
+        guard let context = UIGraphicsGetCurrentContext() else { return nil }
+        let contextDataManager = ContextDataManager(context: context)
+        let cdp = contextDataManager.dataPointer
+        var colors = [ColorComponents]()
+        
+        for x in 0..<context.width {
+            let point = PixelPoint(x: x, y: 0)
+            let offset = contextDataManager.dataOffset(for: point)
+            let colorComp = ColorComponents(red: cdp[offset+2], green: cdp[offset+1], blue: cdp[offset], alpha: cdp[offset+3])
+            colors.append(colorComp)
+        }
+        
+        self.colors = colors
+        UIGraphicsEndImageContext()
+    }
+    
     public func highlight(forColorComponents components: ColorComponents) -> ColorComponents {
-        switch special {
+        switch specialCase {
         case .rrggbb:
             // Increase components with value = 0 if nothing else can be increased
             let increaseZeros = (components.red == 0 || components.red == 255)
@@ -196,7 +219,7 @@ public struct Palette: Equatable {
     }
     
     public func shadow(forColorComponents components: ColorComponents) -> ColorComponents {
-        switch special {
+        switch specialCase {
         case .rrggbb:
             let red: UInt8 = {
                 if components.red < 255/3 {

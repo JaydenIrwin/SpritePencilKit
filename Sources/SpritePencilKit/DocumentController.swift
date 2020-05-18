@@ -35,15 +35,7 @@ public class DocumentController {
             context.setBlendMode(.copy)
             context.setAllowsAntialiasing(false)
             context.setShouldAntialias(false)
-            
-            let widthMultiple = ContextDataManager.contextWidthMultiple
-            let rowOffset = ((context.width + widthMultiple - 1) / widthMultiple) * widthMultiple // Round up to multiple of 8
-            let dataPointer: UnsafeMutablePointer<UInt8> = {
-                let capacity = self.context.width * context.height
-                let pointer = self.context.data!.bindMemory(to: UInt8.self, capacity: capacity)
-                return pointer
-            }()
-            contextDataManager = ContextDataManager(rowOffset: rowOffset, dataPointer: dataPointer)
+            contextDataManager = ContextDataManager(context: context)
         }
     }
     public var palette: Palette?
