@@ -94,7 +94,7 @@ public struct Palette: Equatable {
         return lhs.name == rhs.name
     }
     
-    public let name: String
+    public var name: String
     public let specialCase: SpecialCase?
     public let colors: [ColorComponents]
     
