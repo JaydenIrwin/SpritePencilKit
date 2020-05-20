@@ -45,6 +45,7 @@ public class DocumentController {
     public var contextDataManager: ContextDataManager!
     public var verticalSymmetry = false
     public var horizontalSymmetry = false
+    public var checkeredDrawingMode = false
     public var hoverPoint: PixelPoint? {
         didSet {
             editorDelegate?.hoverPoint = hoverPoint
@@ -171,32 +172,41 @@ public class DocumentController {
                 let brushPoint = PixelPoint(x: pointInBounds.x + xOffset, y: pointInBounds.y + yOffset)
                 
                 if doneByUser {
-                    registerUndo(at: brushPoint)
                     currentOperationPixelPoints.append(brushPoint)
+                    if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
+                        registerUndo(at: brushPoint)
+                        basicPaint(colorComponents: colorComponents, at: brushPoint)
+                    }
                     if verticalSymmetry {
                         let verticalSymmetricPointInBounds = PixelPoint(x: pointInBounds.x, y: context.height - pointInBounds.y - sizeInBounds.height)
                         let brushPoint = PixelPoint(x: verticalSymmetricPointInBounds.x + xOffset, y: verticalSymmetricPointInBounds.y + yOffset)
-                        registerUndo(at: brushPoint)
                         currentOperationPixelPoints.append(brushPoint)
-                        basicPaint(colorComponents: colorComponents, at: brushPoint)
+                        if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
+                            registerUndo(at: brushPoint)
+                            basicPaint(colorComponents: colorComponents, at: brushPoint)
+                        }
                         if horizontalSymmetry {
                             let verticalAndHorizontalSymmetricPointInBounds = PixelPoint(x: context.width - pointInBounds.x - sizeInBounds.width, y: verticalSymmetricPointInBounds.y)
                             let brushPoint = PixelPoint(x: verticalAndHorizontalSymmetricPointInBounds.x + xOffset, y: verticalAndHorizontalSymmetricPointInBounds.y + yOffset)
-                            registerUndo(at: brushPoint)
                             currentOperationPixelPoints.append(brushPoint)
-                            basicPaint(colorComponents: colorComponents, at: brushPoint)
+                            if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
+                                registerUndo(at: brushPoint)
+                                basicPaint(colorComponents: colorComponents, at: brushPoint)
+                            }
                         }
                     }
                     if horizontalSymmetry {
                         let horizontalSymmetricPointInBounds = PixelPoint(x: context.width - pointInBounds.x - sizeInBounds.width, y: pointInBounds.y)
                         let brushPoint = PixelPoint(x: horizontalSymmetricPointInBounds.x + xOffset, y: horizontalSymmetricPointInBounds.y + yOffset)
-                        registerUndo(at: brushPoint)
                         currentOperationPixelPoints.append(brushPoint)
-                        basicPaint(colorComponents: colorComponents, at: brushPoint)
+                        if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
+                            registerUndo(at: brushPoint)
+                            basicPaint(colorComponents: colorComponents, at: brushPoint)
+                        }
                     }
+                } else {
+                    basicPaint(colorComponents: colorComponents, at: brushPoint)
                 }
-                
-                basicPaint(colorComponents: colorComponents, at: brushPoint)
             }
         }
         

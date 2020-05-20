@@ -35,7 +35,16 @@ public struct ColorComponents: Equatable {
         let scanner = Scanner(string: string)
         var hexNumber: UInt64 = 0
         
-        if string.count == 6 {
+        switch string.count {
+        case 8:
+            if scanner.scanHexInt64(&hexNumber) {
+                red = UInt8((hexNumber & 0xff000000) >> 24)
+                green = UInt8((hexNumber & 0x00ff0000) >> 16)
+                blue = UInt8((hexNumber & 0x0000ff00) >> 8)
+                alpha = UInt8(hexNumber & 0x000000ff)
+                return
+            }
+        case 6:
             if scanner.scanHexInt64(&hexNumber) {
                 red = UInt8((hexNumber & 0xff0000) >> 16)
                 green = UInt8((hexNumber & 0x00ff00) >> 8)
@@ -43,7 +52,15 @@ public struct ColorComponents: Equatable {
                 alpha = 255
                 return
             }
-        } else if string.count == 3 {
+        case 4:
+            if scanner.scanHexInt64(&hexNumber) {
+                red = UInt8((hexNumber & 0xf000) >> 12)
+                green = UInt8((hexNumber & 0x0f00) >> 8)
+                blue = UInt8((hexNumber & 0x00f0) >> 4)
+                alpha = UInt8(hexNumber & 0x000f)
+                return
+            }
+        case 3:
             if scanner.scanHexInt64(&hexNumber) {
                 red = UInt8((hexNumber & 0xf00) >> 8)
                 green = UInt8((hexNumber & 0x0f0) >> 4)
@@ -51,6 +68,8 @@ public struct ColorComponents: Equatable {
                 alpha = 255
                 return
             }
+        default:
+            return nil
         }
         return nil
     }
