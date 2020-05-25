@@ -131,86 +131,78 @@ public class DocumentController {
         refresh()
     }
     
-    func basicPaint(colorComponents: ColorComponents, at point: PixelPoint) {
+    func simplePaint(colorComponents: ColorComponents, at point: PixelPoint) {
         let offset = contextDataManager.dataOffset(for: point)
+        
+        let undoRed = contextDataManager.dataPointer[offset+2]
+        let undoGreen = contextDataManager.dataPointer[offset+1]
+        let undoBlue = contextDataManager.dataPointer[offset]
+        let undoAlpha = contextDataManager.dataPointer[offset+3]
+        let undoColor = ColorComponents(red: undoRed, green: undoGreen, blue: undoBlue, alpha: undoAlpha)
+        
         contextDataManager.dataPointer[offset+2] = colorComponents.red
         contextDataManager.dataPointer[offset+1] = colorComponents.green
         contextDataManager.dataPointer[offset] = colorComponents.blue
         contextDataManager.dataPointer[offset+3] = colorComponents.alpha
+        
+        undoManager?.registerUndo(withTarget: self, handler: { (target) in
+            target.simplePaint(colorComponents: undoColor, at: point)
+        })
     }
     
-    public func paint(colorComponents: ColorComponents, at point: PixelPoint, size: PixelSize, doneByUser: Bool) {
-        
-        func registerUndo(at brushPoint: PixelPoint) {
-            let undoColorComponents = getColorComponents(at: brushPoint)
-            undoManager?.registerUndo(withTarget: self, handler: { (target) in
-                target.basicPaint(colorComponents: undoColorComponents, at: brushPoint)
-            })
-        }
+    public func brushPaint(colorComponents: ColorComponents, at point: PixelPoint, size: PixelSize) {
         
         let pointInBounds: PixelPoint
         let sizeInBounds: PixelSize
-        if doneByUser {
-            if size == PixelSize(width: 1, height: 1) {
-                guard point.x < context.width, point.y < context.height, 0 <= point.x, 0 <= point.y else { return }
-                pointInBounds = point
-                sizeInBounds = size
-            } else {
-                guard point.x < context.width, point.y < context.height, 0 <= point.x + size.width-1, 0 <= point.y + size.height-1 else { return }
-                pointInBounds = PixelPoint(x: max(0, point.x), y: max(0, point.y))
-                let newWidth = min(size.width - (pointInBounds.x - point.x), (context.width - pointInBounds.x))
-                let newHeight = min(size.height - (pointInBounds.y - point.y), (context.height - pointInBounds.y))
-                sizeInBounds = PixelSize(width: newWidth, height: newHeight)
-            }
-        } else {
+        if size == PixelSize(width: 1, height: 1) {
+            guard point.x < context.width, point.y < context.height, 0 <= point.x, 0 <= point.y else { return }
             pointInBounds = point
             sizeInBounds = size
+        } else {
+            guard point.x < context.width, point.y < context.height, 0 <= point.x + size.width-1, 0 <= point.y + size.height-1 else { return }
+            pointInBounds = PixelPoint(x: max(0, point.x), y: max(0, point.y))
+            let newWidth = min(size.width - (pointInBounds.x - point.x), (context.width - pointInBounds.x))
+            let newHeight = min(size.height - (pointInBounds.y - point.y), (context.height - pointInBounds.y))
+            sizeInBounds = PixelSize(width: newWidth, height: newHeight)
         }
         
         for xOffset in 0..<(sizeInBounds.width) {
             for yOffset in 0..<(sizeInBounds.height) {
                 let brushPoint = PixelPoint(x: pointInBounds.x + xOffset, y: pointInBounds.y + yOffset)
+                guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
                 
-                if doneByUser {
+                currentOperationPixelPoints.append(brushPoint)
+                if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
+                    simplePaint(colorComponents: colorComponents, at: brushPoint)
+                }
+                if verticalSymmetry {
+                    let verticalSymmetricPointInBounds = PixelPoint(x: pointInBounds.x, y: context.height - pointInBounds.y - sizeInBounds.height)
+                    let brushPoint = PixelPoint(x: verticalSymmetricPointInBounds.x + xOffset, y: verticalSymmetricPointInBounds.y + yOffset)
                     currentOperationPixelPoints.append(brushPoint)
                     if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
-                        registerUndo(at: brushPoint)
-                        basicPaint(colorComponents: colorComponents, at: brushPoint)
-                    }
-                    if verticalSymmetry {
-                        let verticalSymmetricPointInBounds = PixelPoint(x: pointInBounds.x, y: context.height - pointInBounds.y - sizeInBounds.height)
-                        let brushPoint = PixelPoint(x: verticalSymmetricPointInBounds.x + xOffset, y: verticalSymmetricPointInBounds.y + yOffset)
-                        currentOperationPixelPoints.append(brushPoint)
-                        if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
-                            registerUndo(at: brushPoint)
-                            basicPaint(colorComponents: colorComponents, at: brushPoint)
-                        }
-                        if horizontalSymmetry {
-                            let verticalAndHorizontalSymmetricPointInBounds = PixelPoint(x: context.width - pointInBounds.x - sizeInBounds.width, y: verticalSymmetricPointInBounds.y)
-                            let brushPoint = PixelPoint(x: verticalAndHorizontalSymmetricPointInBounds.x + xOffset, y: verticalAndHorizontalSymmetricPointInBounds.y + yOffset)
-                            currentOperationPixelPoints.append(brushPoint)
-                            if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
-                                registerUndo(at: brushPoint)
-                                basicPaint(colorComponents: colorComponents, at: brushPoint)
-                            }
-                        }
+                        simplePaint(colorComponents: colorComponents, at: brushPoint)
                     }
                     if horizontalSymmetry {
-                        let horizontalSymmetricPointInBounds = PixelPoint(x: context.width - pointInBounds.x - sizeInBounds.width, y: pointInBounds.y)
-                        let brushPoint = PixelPoint(x: horizontalSymmetricPointInBounds.x + xOffset, y: horizontalSymmetricPointInBounds.y + yOffset)
+                        let verticalAndHorizontalSymmetricPointInBounds = PixelPoint(x: context.width - pointInBounds.x - sizeInBounds.width, y: verticalSymmetricPointInBounds.y)
+                        let brushPoint = PixelPoint(x: verticalAndHorizontalSymmetricPointInBounds.x + xOffset, y: verticalAndHorizontalSymmetricPointInBounds.y + yOffset)
                         currentOperationPixelPoints.append(brushPoint)
                         if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
-                            registerUndo(at: brushPoint)
-                            basicPaint(colorComponents: colorComponents, at: brushPoint)
+                            simplePaint(colorComponents: colorComponents, at: brushPoint)
                         }
                     }
-                } else {
-                    basicPaint(colorComponents: colorComponents, at: brushPoint)
+                }
+                if horizontalSymmetry {
+                    let horizontalSymmetricPointInBounds = PixelPoint(x: context.width - pointInBounds.x - sizeInBounds.width, y: pointInBounds.y)
+                    let brushPoint = PixelPoint(x: horizontalSymmetricPointInBounds.x + xOffset, y: horizontalSymmetricPointInBounds.y + yOffset)
+                    currentOperationPixelPoints.append(brushPoint)
+                    if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
+                        simplePaint(colorComponents: colorComponents, at: brushPoint)
+                    }
                 }
             }
         }
         
-        if doneByUser, 127 < colorComponents.alpha {
+        if 127 < colorComponents.alpha {
             recentColorDelegate?.usedColor(components: colorComponents)
         }
         paintParticlesDelegate?.painted(context: context, color: UIColor(components: colorComponents), at: point)
@@ -263,7 +255,7 @@ public class DocumentController {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
                 let highlightComponents = (palette ?? Palette.defaultPalette).highlight(forColorComponents: getColorComponents(at: brushPoint))
-                paint(colorComponents: highlightComponents, at: brushPoint, size: PixelSize(width: 1, height: 1), doneByUser: true)
+                brushPaint(colorComponents: highlightComponents, at: brushPoint, size: PixelSize(width: 1, height: 1))
             }
         }
     }
@@ -274,7 +266,7 @@ public class DocumentController {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
                 let shadowComponents = (palette ?? Palette.defaultPalette).shadow(forColorComponents: getColorComponents(at: brushPoint))
-                paint(colorComponents: shadowComponents, at: brushPoint, size: PixelSize(width: 1, height: 1), doneByUser: true)
+                brushPaint(colorComponents: shadowComponents, at: brushPoint, size: PixelSize(width: 1, height: 1))
             }
         }
     }
@@ -299,9 +291,9 @@ public class DocumentController {
             guard getColorComponents(at: pixelPoint) == fillFromColorComponents else { continue }
             
             undoManager?.registerUndo(withTarget: self, handler: { (target) in
-                target.basicPaint(colorComponents: self.fillFromColorComponents!, at: pixelPoint)
+                target.simplePaint(colorComponents: self.fillFromColorComponents!, at: pixelPoint)
             })
-            basicPaint(colorComponents: toolColorComponents, at: pixelPoint)
+            simplePaint(colorComponents: toolColorComponents, at: pixelPoint)
             
             currentOperationPixelPoints.append(pixelPoint)
             
@@ -425,18 +417,18 @@ public class DocumentController {
         if let colorComponents = colorComponents {
             for point in outline {
                 undoManager?.registerUndo(withTarget: self, handler: { (target) in
-                    target.basicPaint(colorComponents: .clear, at: point.point)
+                    target.simplePaint(colorComponents: .clear, at: point.point)
                 })
-                basicPaint(colorComponents: colorComponents, at: point.point)
+                simplePaint(colorComponents: colorComponents, at: point.point)
             }
         } else {
             // Automatic color
             for point in outline {
                 let shadowColor = (palette ?? Palette.defaultPalette).shadow(forColorComponents: point.neighborColorComponents)
                 undoManager?.registerUndo(withTarget: self, handler: { (target) in
-                    target.basicPaint(colorComponents: .clear, at: point.point)
+                    target.simplePaint(colorComponents: .clear, at: point.point)
                 })
-                basicPaint(colorComponents: shadowColor, at: point.point)
+                simplePaint(colorComponents: shadowColor, at: point.point)
             }
         }
         undoManager?.endUndoGrouping()
