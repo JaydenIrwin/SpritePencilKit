@@ -107,8 +107,7 @@ public class DocumentController {
     weak public var paintParticlesDelegate: PaintParticlesDelegate?
     weak public var canvasView: CanvasView!
     
-    public init(undoManager: UndoManager?, canvasView: CanvasView) {
-        self.undoManager = undoManager
+    public init(canvasView: CanvasView) {
         self.canvasView = canvasView
     }
     
@@ -239,14 +238,17 @@ public class DocumentController {
         return ColorComponents(red: cdp[offset+2], green: cdp[offset+1], blue: cdp[offset], alpha: cdp[offset+3])
     }
     
-    public func move(dx: CGFloat, dy: CGFloat) {
+    public func move(deltaPoint: CGPoint) {
         context.clear()
-        let newOrigin = CGPoint(x: dx, y: dy)
+        let newOrigin = CGPoint(x: deltaPoint.x, y: deltaPoint.y)
         canvasView.spriteCopy.draw(at: newOrigin)
         
-        undoManager?.registerUndo(withTarget: self) { (target) in
-            target.move(dx: -dx, dy: -dy)
-        }
+        // Draw 3 more times to create seemless loop
+        let x = deltaPoint.x + (0 < deltaPoint.x ? -1 : 1) * CGFloat(context.width)
+        canvasView.spriteCopy.draw(at: CGPoint(x: x, y: deltaPoint.y))
+        let y = deltaPoint.y + (0 < deltaPoint.y ? -1 : 1) * CGFloat(context.height)
+        canvasView.spriteCopy.draw(at: CGPoint(x: deltaPoint.x, y: y))
+        canvasView.spriteCopy.draw(at: CGPoint(x: x, y: y))
     }
     
     public func highlight(at point: PixelPoint, size: PixelSize) {

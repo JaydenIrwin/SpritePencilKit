@@ -33,7 +33,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     public var toolSizeCopy = PixelSize(width: 1, height: 1)
     override public var bounds: CGRect {
         didSet {
-            if documentController != nil, !userWillStartZooming {
+            if documentController?.context != nil, !userWillStartZooming {
                 zoomToFit()
             }
         }
@@ -88,7 +88,16 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     public var shouldStartZooming: Bool {
         (zoomEnabled && drawnPointsAreCancelable()) || zoomEnabledOverride
     }
-
+    
+    public override init(frame: CGRect) {
+        super.init(frame: frame)
+        documentController = DocumentController(canvasView: self)
+    }
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        documentController = DocumentController(canvasView: self)
+    }
+    
     public func setupView() {
         delegate = self
         panGestureRecognizer.minimumNumberOfTouches = 2
@@ -373,7 +382,8 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     }
     
     override public func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        switch touches.first!.type {
+        guard let touch = touches.first else { return }
+        switch touch.type {
         case .pencil:
             applePencilUsed = true
             if !applePencilCanEyedrop, tool is EyedroperTool {
@@ -398,32 +408,33 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             break
         case is MoveTool:
             spriteCopy = UIImage(cgImage: documentController.context.makeImage()!)
-            dragStartPoint = touches.first!.location(in: spriteView)
+            dragStartPoint = touch.location(in: spriteView)
         default:
             documentController.undoManager?.beginUndoGrouping()
         }
         canvasDelegate?.canvasViewDidBeginUsingTool(self)
-        if let coalesced = event?.coalescedTouches(for: touches.first!) {
+        if let coalesced = event?.coalescedTouches(for: touch) {
             addSamples(for: coalesced)
         }
     }
     
     override public func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard validateTouchesForCurrentTool(touches) else { return }
-        if let coalesced = event?.coalescedTouches(for: touches.first!) {
+        guard let touch = touches.first, validateTouchesForCurrentTool(touches) else { return }
+        if let coalesced = event?.coalescedTouches(for: touch) {
             addSamples(for: coalesced)
         }
     }
     
     override public func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard validateTouchesForCurrentTool(touches) else { return }
+        guard let touch = touches.first, validateTouchesForCurrentTool(touches) else { return }
         
         switch tool {
         case is EyedroperTool:
-            let point = makePixelPoint(touchLocation: touches.first!.location(in: spriteView), toolSize: PixelSize(width: 1, height: 1))
+            let location = touch.location(in: spriteView)
+            let point = makePixelPoint(touchLocation: location, toolSize: PixelSize(width: 1, height: 1))
             documentController.eyedrop(at: point)
         default:
-            if let coalesced = event?.coalescedTouches(for: touches.first!) {
+            if let coalesced = event?.coalescedTouches(for: touch) {
                 addSamples(for: coalesced)
             }
             switch tool {
@@ -442,10 +453,16 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
                 if 0 < documentController.undoManager?.groupingLevel ?? 0 {
                     documentController.undoManager?.endUndoGrouping()
                 }
-            case is MoveTool: //or is EyedroperTool
-                break
+            case is MoveTool:
+                let location = touch.location(in: spriteView)
+                moveViaTouchLocation(location)
+                documentController.undoManager?.registerUndo(withTarget: documentController) { (target) in
+                    target.move(deltaPoint: .zero)
+                }
+                documentController.editorDelegate?.refreshUndo()
             case is FillTool:
-                let point = makePixelPoint(touchLocation: touches.first!.location(in: spriteView), toolSize: PixelSize(width: 1, height: 1))
+                let location = touch.location(in: spriteView)
+                let point = makePixelPoint(touchLocation: location, toolSize: PixelSize(width: 1, height: 1))
                 documentController.undoManager?.beginUndoGrouping()
                 documentController.fill(at: point)
                 documentController.currentOperationPixelPoints.removeAll()
@@ -460,7 +477,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
                 }
             }
             
-            switch touches.first!.type {
+            switch touch.type {
             case .pencil:
                 break
             default:
@@ -495,8 +512,8 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     }
     
     public func validateTouchesForCurrentTool(_ touches: Set<UITouch>) -> Bool {
-        switch touches.first!.type {
-        case .pencil:
+        switch touches.first?.type {
+        case .pencil?:
             return true
         default:
             if applePencilUsed {
@@ -527,9 +544,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
                     let point = makePixelPoint(touchLocation: touchLocation, toolSize: eraser.size)
                     documentController.brushPaint(colorComponents: .clear, at: point, size: eraser.size)
                 case is MoveTool:
-                    let dx = CGFloat((touchLocation.x - dragStartPoint!.x) / spriteZoomScale).rounded()
-                    let dy = CGFloat((touchLocation.y - dragStartPoint!.y) / spriteZoomScale).rounded()
-                    documentController.move(dx: dx, dy: dy)
+                    moveViaTouchLocation(touchLocation)
                 case let highlight as HighlightTool:
                     let point = makePixelPoint(touchLocation: touchLocation, toolSize: highlight.size)
                     documentController.highlight(at: point, size: highlight.size)
@@ -542,13 +557,21 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             }
             documentController.refresh()
             
-            if let touchLocation = touches.first?.location(in: spriteView) {
+            if !(tool is MoveTool), let touch = touches.first {
+                let touchLocation = touch.location(in: spriteView)
                 let point = makePixelPoint(touchLocation: touchLocation, toolSize: toolSizeCopy)
                 updateHoverLocation(at: point)
             }
         default:
             break
         }
+    }
+    
+    func moveViaTouchLocation(_ touchLocation: CGPoint) {
+        guard let dragStartPoint = dragStartPoint else { return }
+        let dx = CGFloat((touchLocation.x - dragStartPoint.x) / spriteZoomScale).rounded()
+        let dy = CGFloat((touchLocation.y - dragStartPoint.y) / spriteZoomScale).rounded()
+        documentController.move(deltaPoint: CGPoint(x: dx, y: dy))
     }
     
     public func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {
