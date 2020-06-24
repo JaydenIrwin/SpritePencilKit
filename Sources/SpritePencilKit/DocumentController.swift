@@ -10,7 +10,7 @@ import UIKit
 import CoreImage.CIFilterBuiltins
 
 public protocol ToolDelegate: class {
-    func selectTool(atIndex index: Int, animated: Bool)
+    func selectTool(_ tool: Tool)
 }
 public protocol EditorDelegate: class {
     var hoverPoint: PixelPoint? { get set }
@@ -55,11 +55,11 @@ public class DocumentController {
     // Tools
     public var pencilTool = PencilTool(width: 1)
     public var eraserTool = EraserTool(width: 1)
-    public var eyedroperTool = EyedroperTool()
     public var fillTool = FillTool()
     public var moveTool = MoveTool()
     public var highlightTool = HighlightTool(width: 1)
     public var shadowTool = ShadowTool(width: 1)
+    public var eyedroperTool = EyedroperTool()
     public var previousTool: Tool = EraserTool(width: 1)
     public var tool: Tool = PencilTool(width: 1) {
         didSet {
@@ -67,35 +67,25 @@ public class DocumentController {
                 UISelectionFeedbackGenerator().selectionChanged()
                 previousTool = oldValue
             }
-            let index: Int
             switch tool {
             case let pencil as PencilTool:
-                index = 0
                 canvasView.toolSizeChanged(size: pencil.size)
             case let eraser as EraserTool:
-                index = 1
                 canvasView.toolSizeChanged(size: eraser.size)
-            case is EyedroperTool:
-                index = 2
-                canvasView.toolSizeChanged(size: PixelSize(width: 1, height: 1))
             case is FillTool:
-                index = 3
                 canvasView.toolSizeChanged(size: PixelSize(width: 1, height: 1))
             case is MoveTool:
-                index = 4
                 canvasView.toolSizeChanged(size: PixelSize(width: 1, height: 1))
             case let highlight as HighlightTool:
-                index = 5
                 canvasView.toolSizeChanged(size: highlight.size)
             case let shadow as ShadowTool:
-                index = 6
                 canvasView.toolSizeChanged(size: shadow.size)
+            case is EyedroperTool:
+                canvasView.toolSizeChanged(size: PixelSize(width: 1, height: 1))
             default:
-                index = 0
                 canvasView.toolSizeChanged(size: PixelSize(width: 1, height: 1))
             }
-            let animated = type(of: tool) != type(of: oldValue)
-            toolDelegate?.selectTool(atIndex: index, animated: animated)
+            toolDelegate?.selectTool(tool)
         }
     }
     

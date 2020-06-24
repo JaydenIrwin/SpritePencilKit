@@ -32,9 +32,6 @@ public struct EraserTool: Tool {
         self.width = width
     }
 }
-public struct EyedroperTool: Tool {
-    public init() { }
-}
 public struct FillTool: Tool {
     public init() { }
 }
@@ -60,4 +57,7 @@ public struct ShadowTool: Tool {
     public init(width: Int) {
         self.width = width
     }
+}
+public struct EyedroperTool: Tool {
+    public init() { }
 }
