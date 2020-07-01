@@ -40,7 +40,9 @@ public class DocumentController {
     }
     public var palette: Palette?
     public var toolColorComponents = ColorComponents(red: 0, green: 0, blue: 0, alpha: 255)
-    public var currentOperationPixelPoints = [PixelPoint]()
+    public var currentOperationPixelPoints = Set<PixelPoint>()
+    public var currentOperationFirstPixelPoint: PixelPoint?
+    public var currentOperationLastPixelPoint: PixelPoint?
     public var fillFromColorComponents: ColorComponents?
     public var contextDataManager: ContextDataManager!
     public var verticalSymmetry = false
@@ -159,35 +161,39 @@ public class DocumentController {
             for yOffset in 0..<(sizeInBounds.height) {
                 let brushPoint = PixelPoint(x: pointInBounds.x + xOffset, y: pointInBounds.y + yOffset)
                 guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
+                var symPoints = [PixelPoint]()
                 
-                currentOperationPixelPoints.append(brushPoint)
                 if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
                     simplePaint(colorComponents: colorComponents, at: brushPoint)
+                    symPoints.append(brushPoint)
                 }
+                currentOperationPixelPoints.insert(brushPoint)
                 if verticalSymmetry {
-                    let verticalSymmetricPointInBounds = PixelPoint(x: pointInBounds.x, y: context.height - pointInBounds.y - sizeInBounds.height)
-                    let brushPoint = PixelPoint(x: verticalSymmetricPointInBounds.x + xOffset, y: verticalSymmetricPointInBounds.y + yOffset)
-                    currentOperationPixelPoints.append(brushPoint)
+                    let mirroredY = context.height - brushPoint.y - 1
+                    let brushPoint = PixelPoint(x: brushPoint.x, y: mirroredY)
                     if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
                         simplePaint(colorComponents: colorComponents, at: brushPoint)
+                        symPoints.append(brushPoint)
                     }
+                    currentOperationPixelPoints.insert(brushPoint)
                     if horizontalSymmetry {
-                        let verticalAndHorizontalSymmetricPointInBounds = PixelPoint(x: context.width - pointInBounds.x - sizeInBounds.width, y: verticalSymmetricPointInBounds.y)
-                        let brushPoint = PixelPoint(x: verticalAndHorizontalSymmetricPointInBounds.x + xOffset, y: verticalAndHorizontalSymmetricPointInBounds.y + yOffset)
-                        currentOperationPixelPoints.append(brushPoint)
+                        let brushPoint = PixelPoint(x: context.width - brushPoint.x - 1, y: mirroredY)
                         if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
                             simplePaint(colorComponents: colorComponents, at: brushPoint)
+                            symPoints.append(brushPoint)
                         }
+                        currentOperationPixelPoints.insert(brushPoint)
                     }
                 }
                 if horizontalSymmetry {
-                    let horizontalSymmetricPointInBounds = PixelPoint(x: context.width - pointInBounds.x - sizeInBounds.width, y: pointInBounds.y)
-                    let brushPoint = PixelPoint(x: horizontalSymmetricPointInBounds.x + xOffset, y: horizontalSymmetricPointInBounds.y + yOffset)
-                    currentOperationPixelPoints.append(brushPoint)
+                    let brushPoint = PixelPoint(x: context.width - brushPoint.x - 1, y: brushPoint.y)
                     if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
                         simplePaint(colorComponents: colorComponents, at: brushPoint)
+                        symPoints.append(brushPoint)
                     }
+                    currentOperationPixelPoints.insert(brushPoint)
                 }
+                print(symPoints)
             }
         }
         
@@ -198,13 +204,12 @@ public class DocumentController {
     }
     
     public func fillDrawnPath() {
-        guard 7 <= currentOperationPixelPoints.count else { return }
-        let firstPixelPoint = currentOperationPixelPoints.removeFirst()
-        guard abs(firstPixelPoint.x - currentOperationPixelPoints.last!.x) <= 1, abs(firstPixelPoint.y - currentOperationPixelPoints.last!.y) <= 1 else { return }
+        guard 7 <= currentOperationPixelPoints.count, let firstPoint = currentOperationFirstPixelPoint, let lastPoint = currentOperationLastPixelPoint else { return }
+        guard abs(firstPoint.x - lastPoint.x) <= 1, abs(firstPoint.y - lastPoint.y) <= 1 else { return }
         let image = context.makeImage()!
         context.beginPath()
-        context.move(to: CGPoint(x: CGFloat(firstPixelPoint.x) + 0.5, y: CGFloat(firstPixelPoint.y) + 0.5))
-        for pixelPoint in currentOperationPixelPoints {
+        context.move(to: CGPoint(x: CGFloat(firstPoint.x) + 0.5, y: CGFloat(firstPoint.y) + 0.5))
+        for pixelPoint in currentOperationPixelPoints { // ISSUE: points are not in order in Set<>
             context.addLine(to: CGPoint(x: CGFloat(pixelPoint.x) + 0.5, y: CGFloat(pixelPoint.y) + 0.5))
         }
         context.closePath()
@@ -287,7 +292,7 @@ public class DocumentController {
             })
             simplePaint(colorComponents: toolColorComponents, at: pixelPoint)
             
-            currentOperationPixelPoints.append(pixelPoint)
+            currentOperationPixelPoints.insert(pixelPoint)
             
             stack += [
                 PixelPoint(x: pixelPoint.x+1, y: pixelPoint.y),

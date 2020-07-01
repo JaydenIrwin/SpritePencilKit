@@ -410,6 +410,9 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             spriteCopy = UIImage(cgImage: documentController.context.makeImage()!)
             dragStartPoint = touch.location(in: spriteView)
         default:
+            let touchLocation = touch.location(in: spriteView)
+            let point = makePixelPoint(touchLocation: touchLocation, toolSize: PixelSize(width: 1, height: 1))
+            documentController.currentOperationFirstPixelPoint = point
             documentController.undoManager?.beginUndoGrouping()
         }
         canvasDelegate?.canvasViewDidBeginUsingTool(self)
@@ -437,6 +440,10 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             if let coalesced = event?.coalescedTouches(for: touch) {
                 addSamples(for: coalesced)
             }
+            let touchLocation = touch.location(in: spriteView)
+            let point = makePixelPoint(touchLocation: touchLocation, toolSize: PixelSize(width: 1, height: 1))
+            documentController.currentOperationLastPixelPoint = point
+            
             switch tool {
             case is PencilTool:
                 if shouldFillPaths {
@@ -487,6 +494,8 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             }
             hoverView.isHidden = true
             documentController.hoverPoint = nil
+            documentController.currentOperationFirstPixelPoint = nil
+            documentController.currentOperationLastPixelPoint = nil
         }
         canvasDelegate?.canvasViewDidEndUsingTool(self)
     }
