@@ -113,11 +113,11 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         pencilInteraction.delegate = self
         addInteraction(pencilInteraction)
         
-        checkerboardView = UIImageView(frame: bounds)
+        checkerboardView = UIImageView()
         checkerboardView.layer.magnificationFilter = .nearest
         checkerboardView.translatesAutoresizingMaskIntoConstraints = false
         
-        spriteView = UIImageView(frame: bounds)
+        spriteView = UIImageView()
         spriteView.layer.magnificationFilter = .nearest
         spriteView.translatesAutoresizingMaskIntoConstraints = false
         
@@ -166,7 +166,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         guard let image = checkers.outputImage, let documentContext = documentController.context else { return }
         
         let minimumCheckerboardPixelSize: CGFloat = 4.0
-        let checkerboardPixelSize = bounds.width / (CGFloat(documentContext.width) * spriteZoomScale)
+        let checkerboardPixelSize = safeAreaLayoutGuide.layoutFrame.width / (CGFloat(documentContext.width) * spriteZoomScale)
         if checkerboardPixelSize < minimumCheckerboardPixelSize {
             spriteZoomScale = 1.0
         }
@@ -607,22 +607,22 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
     public func scrollViewDidZoom(_ scrollView: UIScrollView) { // Called many times while zooming
         
         func centerContent() {
-            if (contentSize.width < safeAreaLayoutGuide.layoutFrame.width) {
+            if contentSize.width < safeAreaLayoutGuide.layoutFrame.width {
                 contentOffset.x = ((contentSize.width - safeAreaLayoutGuide.layoutFrame.width) / 2) - safeAreaInsets.left + safeAreaInsets.right
             }
-            if (contentSize.height < safeAreaLayoutGuide.layoutFrame.height) {
+            if contentSize.height < safeAreaLayoutGuide.layoutFrame.height {
                 contentOffset.y = ((contentSize.height - safeAreaLayoutGuide.layoutFrame.height) / 2) - safeAreaInsets.top + safeAreaInsets.bottom
             }
             
             var h: CGFloat = 0.0
             var v: CGFloat = 0.0
-            if (contentSize.width < bounds.width) {
-                h = (bounds.width - contentSize.width) / 2.0
+            if contentSize.width < bounds.width {
+                h = (safeAreaLayoutGuide.layoutFrame.width - contentSize.width) / 2.0
             }
-            if (contentSize.height < bounds.height) {
-                v = (bounds.height - contentSize.height) / 2.0
+            if contentSize.height < bounds.height {
+                v = (safeAreaLayoutGuide.layoutFrame.height - contentSize.height) / 2.0
             }
-            contentInset = UIEdgeInsets(top: v, left: h, bottom: v, right: h)
+            contentInset = UIEdgeInsets(top: v + safeAreaInsets.top, left: h + safeAreaInsets.left, bottom: v + safeAreaInsets.bottom, right: h + safeAreaInsets.right)
         }
         
         centerContent()
