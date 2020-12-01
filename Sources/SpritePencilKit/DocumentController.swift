@@ -39,7 +39,7 @@ public class DocumentController {
         }
     }
     public var palette: Palette?
-    public var toolColorComponents = ColorComponents(red: 0, green: 0, blue: 0, alpha: 255)
+    public var toolColorComponents = ColorComponents(red: 0, green: 0, blue: 0, opacity: 255)
     public var currentOperationPixelPoints = Set<PixelPoint>()
     public var currentOperationFirstPixelPoint: PixelPoint?
     public var currentOperationLastPixelPoint: PixelPoint?
@@ -128,13 +128,13 @@ public class DocumentController {
         let undoRed = contextDataManager.dataPointer[offset+2]
         let undoGreen = contextDataManager.dataPointer[offset+1]
         let undoBlue = contextDataManager.dataPointer[offset]
-        let undoAlpha = contextDataManager.dataPointer[offset+3]
-        let undoColor = ColorComponents(red: undoRed, green: undoGreen, blue: undoBlue, alpha: undoAlpha)
+        let undoOpacity = contextDataManager.dataPointer[offset+3]
+        let undoColor = ColorComponents(red: undoRed, green: undoGreen, blue: undoBlue, opacity: undoOpacity)
         
         contextDataManager.dataPointer[offset+2] = colorComponents.red
         contextDataManager.dataPointer[offset+1] = colorComponents.green
         contextDataManager.dataPointer[offset] = colorComponents.blue
-        contextDataManager.dataPointer[offset+3] = colorComponents.alpha
+        contextDataManager.dataPointer[offset+3] = colorComponents.opacity
         
         undoManager?.registerUndo(withTarget: self, handler: { (target) in
             target.simplePaint(colorComponents: undoColor, at: point)
@@ -197,7 +197,7 @@ public class DocumentController {
             }
         }
         
-        if 127 < colorComponents.alpha {
+        if 127 < colorComponents.opacity {
             recentColorDelegate?.usedColor(components: colorComponents)
         }
         paintParticlesDelegate?.painted(context: context, color: UIColor(components: colorComponents), at: point)
@@ -222,7 +222,7 @@ public class DocumentController {
     
     public func eyedrop(at point: PixelPoint) {
         let components = getColorComponents(at: point)
-        guard components.alpha == 255 else { return }
+        guard components.opacity == 255 else { return }
         
         editorDelegate?.eyedropColor(colorComponents: components, at: point)
     }
@@ -230,7 +230,7 @@ public class DocumentController {
     public func getColorComponents(at point: PixelPoint) -> ColorComponents {
         let cdp = contextDataManager.dataPointer
         let offset = contextDataManager.dataOffset(for: point)
-        return ColorComponents(red: cdp[offset+2], green: cdp[offset+1], blue: cdp[offset], alpha: cdp[offset+3])
+        return ColorComponents(red: cdp[offset+2], green: cdp[offset+1], blue: cdp[offset], opacity: cdp[offset+3])
     }
     
     public func move(deltaPoint: CGPoint) {
@@ -384,26 +384,26 @@ public class DocumentController {
         for y in 0..<context.height {
             for x in 0..<context.width {
                 let point = PixelPoint(x: x, y: y)
-                let alpha = getColorComponents(at: point).alpha
-                if alpha == 0 {
+                let opacity = getColorComponents(at: point).opacity
+                if opacity == 0 {
                     // Check if a neighbor has a color
                     let componentsAbove = getColorComponents(at: PixelPoint(x: x, y: y+1))
-                    if y+1 < context.height, componentsAbove.alpha != 0 {
+                    if y+1 < context.height, componentsAbove.opacity != 0 {
                         outline.append((point, componentsAbove))
                         continue
                     }
                     let componentsRight = getColorComponents(at: PixelPoint(x: x+1, y: y))
-                    if x+1 < context.width, componentsRight.alpha != 0 {
+                    if x+1 < context.width, componentsRight.opacity != 0 {
                         outline.append((point, componentsRight))
                         continue
                     }
                     let componentsBelow = getColorComponents(at: PixelPoint(x: x, y: y-1))
-                    if 0 <= y-1, componentsBelow.alpha != 0 {
+                    if 0 <= y-1, componentsBelow.opacity != 0 {
                         outline.append((point, componentsBelow))
                         continue
                     }
                     let componentsLeft = getColorComponents(at: PixelPoint(x: x-1, y: y))
-                    if 0 <= x-1, componentsLeft.alpha != 0 {
+                    if 0 <= x-1, componentsLeft.opacity != 0 {
                         outline.append((point, componentsLeft))
                         continue
                     }
@@ -453,7 +453,7 @@ public class DocumentController {
         findTop: for y in 0..<Int(context.height) {
             for x in 0..<Int(context.width) {
                 let point = PixelPoint(x: x, y: y)
-                if getColorComponents(at: point).alpha != 0 {
+                if getColorComponents(at: point).opacity != 0 {
                     top = y
                     break findTop
                 }
@@ -464,7 +464,7 @@ public class DocumentController {
         findBottom: for y in stride(from: Int(context.height), to: 0, by: -1) {
             for x in 0..<Int(context.width) {
                 let point = PixelPoint(x: x, y: y)
-                if getColorComponents(at: point).alpha != 0 {
+                if getColorComponents(at: point).opacity != 0 {
                     bottom = y
                     break findBottom
                 }
@@ -474,7 +474,7 @@ public class DocumentController {
         findLeft: for x in 0..<Int(context.width) {
             for y in top!..<bottom {
                 let point = PixelPoint(x: x, y: y)
-                if getColorComponents(at: point).alpha != 0 {
+                if getColorComponents(at: point).opacity != 0 {
                     left = x
                     break findLeft
                 }
@@ -484,7 +484,7 @@ public class DocumentController {
         findRight: for x in stride(from: Int(context.width), to: 0, by: -1) {
             for y in top!..<bottom {
                 let point = PixelPoint(x: x, y: y)
-                if getColorComponents(at: point).alpha != 0 {
+                if getColorComponents(at: point).opacity != 0 {
                     right = x
                     break findRight
                 }

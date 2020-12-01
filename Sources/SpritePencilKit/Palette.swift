@@ -21,14 +21,14 @@ public struct Palette: Equatable {
             (56, 161, 61),(76, 217, 99),(75, 190, 255),(20, 122, 245),
             (89, 87, 214),(255, 128, 198),(230, 185, 140),(140, 90, 40)
         ]
-        return rgb.map({ ColorComponents(red: $0.r, green: $0.g, blue: $0.b, alpha: 255) })
+        return rgb.map({ ColorComponents(red: $0.r, green: $0.g, blue: $0.b, opacity: 255) })
     }())
     public static let rrggbb = Palette(name: "RRGGBB", specialCase: .rrggbb, colors: {
         var colors = [ColorComponents]()
         for red in 0..<4 {
                 for green in 0..<4 {
                     for blue in 0..<4 {
-                        colors.append(ColorComponents(red: UInt8(red)*(255/3), green: UInt8(green)*(255/3), blue: UInt8(blue)*(255/3), alpha: 255))
+                        colors.append(ColorComponents(red: UInt8(red)*(255/3), green: UInt8(green)*(255/3), blue: UInt8(blue)*(255/3), opacity: 255))
                     }
                 }
             }
@@ -36,7 +36,7 @@ public struct Palette: Equatable {
             //            for red in 0..<4 {
             //                for green in 0..<4 {
             //                    for blue in 0..<4 {
-            //                        colors.append(UIColor(displayP3Red: CGFloat(red)/3.0, green: CGFloat(green)/3.0, blue: CGFloat(blue)/3.0, alpha: 1.0))
+            //                        colors.append(UIColor(displayP3Red: CGFloat(red)/3.0, green: CGFloat(green)/3.0, blue: CGFloat(blue)/3.0, opacity: 1.0))
             //                    }
             //                }
         //            }
@@ -58,9 +58,9 @@ public struct Palette: Equatable {
             var red: CGFloat = 0.0
             var green: CGFloat = 0.0
             var blue: CGFloat = 0.0
-            var alpha: CGFloat = 0.0
-            color.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-            return ColorComponents(red: UInt8(red*255), green: UInt8(green*255), blue: UInt8(blue*255), alpha: 255)
+            var opacity: CGFloat = 0.0
+            color.getRed(&red, green: &green, blue: &blue, alpha: &opacity)
+            return ColorComponents(red: UInt8(red*255), green: UInt8(green*255), blue: UInt8(blue*255), opacity: 255)
         })
     }())
     public static let rrrgggbb = Palette(name: "RRRGGGBB", specialCase: .rrrgggbb, colors: {
@@ -68,7 +68,7 @@ public struct Palette: Equatable {
         for red in 0..<8 {
                 for green in 0..<8 {
                     for blue in 0..<4 {
-                        colors.append(ColorComponents(red: UInt8(red)*(255/7), green: UInt8(green)*(255/7), blue: UInt8(blue)*(255/3), alpha: 255))
+                        colors.append(ColorComponents(red: UInt8(red)*(255/7), green: UInt8(green)*(255/7), blue: UInt8(blue)*(255/3), opacity: 255))
                     }
                 }
             }
@@ -76,7 +76,7 @@ public struct Palette: Equatable {
             //            for red in 0..<8 {
             //                for green in 0..<8 {
             //                    for blue in 0..<4 {
-            //                        colors.append(UIColor(displayP3Red: CGFloat(red)/7.0, green: CGFloat(green)/7.0, blue: CGFloat(blue)/3.0, alpha: 1.0))
+            //                        colors.append(UIColor(displayP3Red: CGFloat(red)/7.0, green: CGFloat(green)/7.0, blue: CGFloat(blue)/3.0, opacity: 1.0))
             //                    }
             //                }
         //            }
@@ -119,7 +119,7 @@ public struct Palette: Equatable {
         for x in 0..<context.width {
             let point = PixelPoint(x: x, y: 0)
             let offset = contextDataManager.dataOffset(for: point)
-            let colorComp = ColorComponents(red: cdp[offset+2], green: cdp[offset+1], blue: cdp[offset], alpha: cdp[offset+3])
+            let colorComp = ColorComponents(red: cdp[offset+2], green: cdp[offset+1], blue: cdp[offset], opacity: cdp[offset+3])
             colors.append(colorComp)
         }
         
@@ -162,7 +162,7 @@ public struct Palette: Equatable {
                     return components.blue + 255/3
                 }
             }()
-            return ColorComponents(red: red, green: green, blue: blue, alpha: components.alpha)
+            return ColorComponents(red: red, green: green, blue: blue, opacity: components.opacity)
         case .rrrgggbb:
             // Increase components with value = 0 if nothing else can be increased
             let increaseZeros = (components.red == 0 || components.red == 255)
@@ -196,25 +196,25 @@ public struct Palette: Equatable {
                     return components.blue + 255/3
                 }
             }()
-            return ColorComponents(red: red, green: green, blue: blue, alpha: components.alpha)
+            return ColorComponents(red: red, green: green, blue: blue, opacity: components.opacity)
         default:
             let color = UIColor(components: components)
             var hue: CGFloat = 0.0
             var saturation: CGFloat = 0.0
             var brightness: CGFloat = 0.0
-            var alpha: CGFloat = 1.0
-            color.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+            var opacity: CGFloat = 1.0
+            color.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &opacity)
             if brightness < 1.0 {
                 brightness = min(brightness + 0.33333, 1.0)
             } else {
                 saturation = max(0.0, saturation - 0.33333)
             }
-            let newColor = UIColor(hue: hue, saturation: saturation, brightness: brightness, alpha: alpha)
+            let newColor = UIColor(hue: hue, saturation: saturation, brightness: brightness, alpha: opacity)
             var red: CGFloat = 0.0
             var green: CGFloat = 0.0
             var blue: CGFloat = 0.0
-            newColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-            return ColorComponents(red: UInt8(red*255), green: UInt8(green*255), blue: UInt8(blue*255), alpha: components.alpha)
+            newColor.getRed(&red, green: &green, blue: &blue, alpha: &opacity)
+            return ColorComponents(red: UInt8(red*255), green: UInt8(green*255), blue: UInt8(blue*255), opacity: components.opacity)
         }
     }
     
@@ -242,7 +242,7 @@ public struct Palette: Equatable {
                     return components.blue - 255/3
                 }
             }()
-            return ColorComponents(red: red, green: green, blue: blue, alpha: components.alpha)
+            return ColorComponents(red: red, green: green, blue: blue, opacity: components.opacity)
         case .rrrgggbb:
             let red: UInt8 = {
                 if components.red < 255/7 {
@@ -265,20 +265,20 @@ public struct Palette: Equatable {
                     return components.blue - 255/3
                 }
             }()
-            return ColorComponents(red: red, green: green, blue: blue, alpha: components.alpha)
+            return ColorComponents(red: red, green: green, blue: blue, opacity: components.opacity)
         default:
             let color = UIColor(components: components)
             var hue: CGFloat = 0.0
             var saturation: CGFloat = 0.0
             var brightness: CGFloat = 0.0
-            var alpha: CGFloat = 1.0
-            color.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
-            let newColor = UIColor(hue: hue, saturation: saturation, brightness: max(0.0, brightness - 0.33333), alpha: alpha)
+            var opacity: CGFloat = 1.0
+            color.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &opacity)
+            let newColor = UIColor(hue: hue, saturation: saturation, brightness: max(0.0, brightness - 0.33333), alpha: opacity)
             var red: CGFloat = 0.0
             var green: CGFloat = 0.0
             var blue: CGFloat = 0.0
-            newColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-            return ColorComponents(red: UInt8(red*255), green: UInt8(green*255), blue: UInt8(blue*255), alpha: components.alpha)
+            newColor.getRed(&red, green: &green, blue: &blue, alpha: &opacity)
+            return ColorComponents(red: UInt8(red*255), green: UInt8(green*255), blue: UInt8(blue*255), opacity: components.opacity)
         }
     }
     

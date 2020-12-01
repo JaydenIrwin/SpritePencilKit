@@ -10,18 +10,18 @@ import Foundation
 
 public struct ColorComponents: Equatable {
     
-    public static let clear = ColorComponents(red: 0, green: 0, blue: 0, alpha: 0)
+    public static let clear = ColorComponents(red: 0, green: 0, blue: 0, opacity: 0)
     
     public let red: UInt8
     public let green: UInt8
     public let blue: UInt8
-    public let alpha: UInt8
+    public let opacity: UInt8
     
-    public init(red: UInt8, green: UInt8, blue: UInt8, alpha: UInt8) {
+    public init(red: UInt8, green: UInt8, blue: UInt8, opacity: UInt8) {
         self.red = red
         self.green = green
         self.blue = blue
-        self.alpha = alpha
+        self.opacity = opacity
     }
     
     public init?(hex: String) {
@@ -41,7 +41,7 @@ public struct ColorComponents: Equatable {
                 red = UInt8((hexNumber & 0xff000000) >> 24)
                 green = UInt8((hexNumber & 0x00ff0000) >> 16)
                 blue = UInt8((hexNumber & 0x0000ff00) >> 8)
-                alpha = UInt8(hexNumber & 0x000000ff)
+                opacity = UInt8(hexNumber & 0x000000ff)
                 return
             }
         case 6:
@@ -49,7 +49,7 @@ public struct ColorComponents: Equatable {
                 red = UInt8((hexNumber & 0xff0000) >> 16)
                 green = UInt8((hexNumber & 0x00ff00) >> 8)
                 blue = UInt8(hexNumber & 0x0000ff)
-                alpha = 255
+                opacity = 255
                 return
             }
         case 4:
@@ -57,7 +57,7 @@ public struct ColorComponents: Equatable {
                 red = UInt8((hexNumber & 0xf000) >> 12)
                 green = UInt8((hexNumber & 0x0f00) >> 8)
                 blue = UInt8((hexNumber & 0x00f0) >> 4)
-                alpha = UInt8(hexNumber & 0x000f)
+                opacity = UInt8(hexNumber & 0x000f)
                 return
             }
         case 3:
@@ -65,7 +65,7 @@ public struct ColorComponents: Equatable {
                 red = UInt8((hexNumber & 0xf00) >> 8)
                 green = UInt8((hexNumber & 0x0f0) >> 4)
                 blue = UInt8(hexNumber & 0x00f)
-                alpha = 255
+                opacity = 255
                 return
             }
         default:
@@ -75,6 +75,6 @@ public struct ColorComponents: Equatable {
     }
     
     public static func ==(left: ColorComponents, right: ColorComponents) -> Bool {
-        return left.red == right.red && left.green == right.green && left.blue == right.blue && left.alpha == right.alpha
+        return left.red == right.red && left.green == right.green && left.blue == right.blue && left.opacity == right.opacity
     }
 }

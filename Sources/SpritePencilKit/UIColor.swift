@@ -14,7 +14,7 @@ public extension UIColor {
         let red = CGFloat(components.red) / 255.0
         let green = CGFloat(components.green) / 255.0
         let blue = CGFloat(components.blue) / 255.0
-        let alpha = CGFloat(components.alpha) / 255.0
+        let alpha = CGFloat(components.opacity) / 255.0
         self.init(red: red, green: green, blue: blue, alpha: alpha)
     }
     
