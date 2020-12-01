@@ -6,18 +6,20 @@
 //  Copyright © 2019 Jayden Irwin. All rights reserved.
 //
 
-import Foundation
+import SwiftUI
 
 public struct ColorComponents: Equatable {
     
     public static let clear = ColorComponents(red: 0, green: 0, blue: 0, opacity: 0)
     
+    public let colorSpace: Color.RGBColorSpace
     public let red: UInt8
     public let green: UInt8
     public let blue: UInt8
     public let opacity: UInt8
     
-    public init(red: UInt8, green: UInt8, blue: UInt8, opacity: UInt8) {
+    public init(_ colorSpace: Color.RGBColorSpace = .sRGB, red: UInt8, green: UInt8, blue: UInt8, opacity: UInt8) {
+        self.colorSpace = colorSpace
         self.red = red
         self.green = green
         self.blue = blue
@@ -35,6 +37,7 @@ public struct ColorComponents: Equatable {
         let scanner = Scanner(string: string)
         var hexNumber: UInt64 = 0
         
+        colorSpace = .sRGB
         switch string.count {
         case 8:
             if scanner.scanHexInt64(&hexNumber) {

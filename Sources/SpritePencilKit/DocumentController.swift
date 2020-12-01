@@ -32,7 +32,6 @@ public class DocumentController {
     
     public var context: CGContext! {
         didSet {
-            context.setBlendMode(.copy)
             context.setAllowsAntialiasing(false)
             context.setShouldAntialias(false)
             contextDataManager = ContextDataManager(context: context)

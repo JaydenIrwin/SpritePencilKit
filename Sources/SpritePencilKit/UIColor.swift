@@ -15,7 +15,12 @@ public extension UIColor {
         let green = CGFloat(components.green) / 255.0
         let blue = CGFloat(components.blue) / 255.0
         let alpha = CGFloat(components.opacity) / 255.0
-        self.init(red: red, green: green, blue: blue, alpha: alpha)
+        
+        if components.colorSpace == .displayP3 {
+            self.init(displayP3Red: red, green: green, blue: blue, alpha: alpha)
+        } else {
+            self.init(red: red, green: green, blue: blue, alpha: alpha)
+        }
     }
     
 }
