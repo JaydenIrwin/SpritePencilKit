@@ -413,7 +413,6 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
             let touchLocation = touch.location(in: spriteView)
             let point = makePixelPoint(touchLocation: touchLocation, toolSize: PixelSize(width: 1, height: 1))
             documentController.currentOperationFirstPixelPoint = point
-            documentController.undoManager?.beginUndoGrouping()
         }
         canvasDelegate?.canvasViewDidBeginUsingTool(self)
         if let coalesced = event?.coalescedTouches(for: touch) {
@@ -449,39 +448,40 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
                 if shouldFillPaths {
                     documentController.fillDrawnPath()
                 }
-//                let undoColors = documentController.currentDrawUndoColors
-//                documentController.undoManager?.registerUndo(withTarget: documentController, handler: { (target) in
-//                    for undoColor in undoColors {
-//                        target.basicPaint(colorComponents: undoColor.colorComponents, at: undoColor.pixelPoint)
-//                    }
-//                })
-                documentController.currentOperationPixelPoints.removeAll()
                 
-                if 0 < documentController.undoManager?.groupingLevel ?? 0 {
-                    documentController.undoManager?.endUndoGrouping()
-                }
+                let copp = documentController.currentOperationPixelPoints
+                documentController.undoManager?.registerUndo(withTarget: documentController, handler: { (target) in
+                    target.archivedPaint(pixels: copp)
+                })
+                documentController.editorDelegate?.refreshUndo()
+                documentController.currentOperationPixelPoints.removeAll()
             case is MoveTool:
-                let location = touch.location(in: spriteView)
-                moveViaTouchLocation(location)
+                guard let dragStartPoint = dragStartPoint else { return }
+                moveViaTouchLocation(touchLocation)
+                
+                let undoDeltaPoint = delta(start: touchLocation, end: dragStartPoint)
                 documentController.undoManager?.registerUndo(withTarget: documentController) { (target) in
-                    target.move(deltaPoint: .zero)
+                    target.archivedMove(deltaPoint: undoDeltaPoint)
                 }
                 documentController.editorDelegate?.refreshUndo()
             case is FillTool:
-                let location = touch.location(in: spriteView)
-                let point = makePixelPoint(touchLocation: location, toolSize: PixelSize(width: 1, height: 1))
-                documentController.undoManager?.beginUndoGrouping()
+                let point = makePixelPoint(touchLocation: touchLocation, toolSize: PixelSize(width: 1, height: 1))
                 documentController.fill(at: point)
+                
+                let copp = documentController.currentOperationPixelPoints
+                documentController.undoManager?.registerUndo(withTarget: documentController, handler: { (target) in
+                    target.archivedPaint(pixels: copp)
+                })
+                documentController.editorDelegate?.refreshUndo()
                 documentController.currentOperationPixelPoints.removeAll()
-                if 0 < documentController.undoManager?.groupingLevel ?? 0 {
-                    documentController.undoManager?.endUndoGrouping()
-                }
                 documentController.refresh()
             default:
+                let copp = documentController.currentOperationPixelPoints
+                documentController.undoManager?.registerUndo(withTarget: documentController, handler: { (target) in
+                    target.archivedPaint(pixels: copp)
+                })
+                documentController.editorDelegate?.refreshUndo()
                 documentController.currentOperationPixelPoints.removeAll()
-                if 0 < documentController.undoManager?.groupingLevel ?? 0 {
-                    documentController.undoManager?.endUndoGrouping()
-                }
             }
             
             switch touch.type {
@@ -504,20 +504,18 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         guard validateTouchesForCurrentTool(touches) else { return }
         let shouldRemoveDrawnPoints = drawnPointsAreCancelable() && !documentController.currentOperationPixelPoints.isEmpty
         
-        documentController.currentOperationPixelPoints.removeAll()
-        if 0 < documentController.undoManager?.groupingLevel ?? 0 {
-            documentController.undoManager?.endUndoGrouping()
-        }
-        
         hoverView.isHidden = true
         documentController.hoverPoint = nil
         
-        canvasDelegate?.canvasViewDidEndUsingTool(self)
-        
         if shouldRemoveDrawnPoints {
-            documentController.undoManager?.undo()
+            for (point, prevColor) in documentController.currentOperationPixelPoints {
+                documentController.simplePaint(colorComponents: prevColor, at: point)
+            }
             documentController.refresh()
         }
+        documentController.currentOperationPixelPoints.removeAll()
+        
+        canvasDelegate?.canvasViewDidEndUsingTool(self)
     }
     
     public func validateTouchesForCurrentTool(_ touches: Set<UITouch>) -> Bool {
@@ -576,11 +574,16 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         }
     }
     
+    func delta(start: CGPoint, end: CGPoint) -> CGSize {
+        let dx = CGFloat((end.x - start.x) / spriteZoomScale).rounded()
+        let dy = CGFloat((end.y - start.y) / spriteZoomScale).rounded()
+        return CGSize(width: dx, height: dy)
+    }
+    
     func moveViaTouchLocation(_ touchLocation: CGPoint) {
         guard let dragStartPoint = dragStartPoint else { return }
-        let dx = CGFloat((touchLocation.x - dragStartPoint.x) / spriteZoomScale).rounded()
-        let dy = CGFloat((touchLocation.y - dragStartPoint.y) / spriteZoomScale).rounded()
-        documentController.move(deltaPoint: CGPoint(x: dx, y: dy))
+        let deltaPoint = delta(start: dragStartPoint, end: touchLocation)
+        documentController.move(deltaPoint: deltaPoint)
     }
     
     public func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {

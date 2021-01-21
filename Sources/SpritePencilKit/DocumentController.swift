@@ -39,7 +39,7 @@ public class DocumentController {
     }
     public var palette: Palette?
     public var toolColorComponents = ColorComponents(red: 0, green: 0, blue: 0, opacity: 255)
-    public var currentOperationPixelPoints = Set<PixelPoint>()
+    public var currentOperationPixelPoints = [PixelPoint: ColorComponents]()
     public var currentOperationFirstPixelPoint: PixelPoint?
     public var currentOperationLastPixelPoint: PixelPoint?
     public var fillFromColorComponents: ColorComponents?
@@ -122,22 +122,33 @@ public class DocumentController {
     }
     
     func simplePaint(colorComponents: ColorComponents, at point: PixelPoint) {
+        let cdp = contextDataManager.dataPointer
         let offset = contextDataManager.dataOffset(for: point)
         
-        let undoRed = contextDataManager.dataPointer[offset+2]
-        let undoGreen = contextDataManager.dataPointer[offset+1]
-        let undoBlue = contextDataManager.dataPointer[offset]
-        let undoOpacity = contextDataManager.dataPointer[offset+3]
+        let undoRed = cdp[offset+2]
+        let undoGreen = cdp[offset+1]
+        let undoBlue = cdp[offset]
+        let undoOpacity = cdp[offset+3]
         let undoColor = ColorComponents(red: undoRed, green: undoGreen, blue: undoBlue, opacity: undoOpacity)
+        currentOperationPixelPoints[point] = undoColor
         
-        contextDataManager.dataPointer[offset+2] = colorComponents.red
-        contextDataManager.dataPointer[offset+1] = colorComponents.green
-        contextDataManager.dataPointer[offset] = colorComponents.blue
-        contextDataManager.dataPointer[offset+3] = colorComponents.opacity
+        cdp[offset+2] = colorComponents.red
+        cdp[offset+1] = colorComponents.green
+        cdp[offset] = colorComponents.blue
+        cdp[offset+3] = colorComponents.opacity
+    }
+    
+    func archivedPaint(pixels: [PixelPoint: ColorComponents]) {
+        for (point, color) in pixels {
+            simplePaint(colorComponents: color, at: point)
+        }
         
+        let copp = currentOperationPixelPoints
         undoManager?.registerUndo(withTarget: self, handler: { (target) in
-            target.simplePaint(colorComponents: undoColor, at: point)
+            target.archivedPaint(pixels: copp)
         })
+        editorDelegate?.refreshUndo()
+        currentOperationPixelPoints.removeAll()
     }
     
     public func brushPaint(colorComponents: ColorComponents, at point: PixelPoint, size: PixelSize) {
@@ -159,44 +170,34 @@ public class DocumentController {
         for xOffset in 0..<(sizeInBounds.width) {
             for yOffset in 0..<(sizeInBounds.height) {
                 let brushPoint = PixelPoint(x: pointInBounds.x + xOffset, y: pointInBounds.y + yOffset)
-                guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
-                var symPoints = [PixelPoint]()
+                guard !currentOperationPixelPoints.keys.contains(brushPoint) else { continue }
                 
                 if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
                     simplePaint(colorComponents: colorComponents, at: brushPoint)
-                    symPoints.append(brushPoint)
                 }
-                currentOperationPixelPoints.insert(brushPoint)
                 if verticalSymmetry {
                     let mirroredY = context.height - brushPoint.y - 1
                     let brushPoint = PixelPoint(x: brushPoint.x, y: mirroredY)
                     if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
                         simplePaint(colorComponents: colorComponents, at: brushPoint)
-                        symPoints.append(brushPoint)
                     }
-                    currentOperationPixelPoints.insert(brushPoint)
                     if horizontalSymmetry {
                         let brushPoint = PixelPoint(x: context.width - brushPoint.x - 1, y: mirroredY)
                         if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
                             simplePaint(colorComponents: colorComponents, at: brushPoint)
-                            symPoints.append(brushPoint)
                         }
-                        currentOperationPixelPoints.insert(brushPoint)
                     }
                 }
                 if horizontalSymmetry {
                     let brushPoint = PixelPoint(x: context.width - brushPoint.x - 1, y: brushPoint.y)
                     if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
                         simplePaint(colorComponents: colorComponents, at: brushPoint)
-                        symPoints.append(brushPoint)
                     }
-                    currentOperationPixelPoints.insert(brushPoint)
                 }
-                print(symPoints)
             }
         }
         
-        if 127 < colorComponents.opacity {
+        if 32 < colorComponents.opacity {
             recentColorDelegate?.usedColor(components: colorComponents)
         }
         paintParticlesDelegate?.painted(context: context, color: UIColor(components: colorComponents), at: point)
@@ -208,12 +209,12 @@ public class DocumentController {
         let image = context.makeImage()!
         context.beginPath()
         context.move(to: CGPoint(x: CGFloat(firstPoint.x) + 0.5, y: CGFloat(firstPoint.y) + 0.5))
-        for pixelPoint in currentOperationPixelPoints { // ISSUE: points are not in order in Set<>
+        for pixelPoint in currentOperationPixelPoints.keys { // ISSUE: points are not in order in Set<>
             context.addLine(to: CGPoint(x: CGFloat(pixelPoint.x) + 0.5, y: CGFloat(pixelPoint.y) + 0.5))
         }
         context.closePath()
         context.fillPath()
-        undoManager?.registerUndo(withTarget: self, handler: { (target) in
+        undoManager?.registerUndo(withTarget: self, handler: { (target) in // POSSIBLE ISSUE: I dont think I should be registering undos here anymore
             target.context.clear()
             self.context.draw(image, in: CGRect(origin: .zero, size: CGSize(width: self.context.width, height: self.context.height)))
         })
@@ -232,24 +233,34 @@ public class DocumentController {
         return ColorComponents(red: cdp[offset+2], green: cdp[offset+1], blue: cdp[offset], opacity: cdp[offset+3])
     }
     
-    public func move(deltaPoint: CGPoint) {
+    public func move(deltaPoint: CGSize) {
         context.clear()
-        let newOrigin = CGPoint(x: deltaPoint.x, y: deltaPoint.y)
+        let newOrigin = CGPoint(x: deltaPoint.width, y: deltaPoint.height)
         canvasView.spriteCopy.draw(at: newOrigin)
         
         // Draw 3 more times to create seemless loop
-        let x = deltaPoint.x + (0 < deltaPoint.x ? -1 : 1) * CGFloat(context.width)
-        canvasView.spriteCopy.draw(at: CGPoint(x: x, y: deltaPoint.y))
-        let y = deltaPoint.y + (0 < deltaPoint.y ? -1 : 1) * CGFloat(context.height)
-        canvasView.spriteCopy.draw(at: CGPoint(x: deltaPoint.x, y: y))
+        let x = deltaPoint.width + (0 < deltaPoint.width ? -1 : 1) * CGFloat(context.width)
+        let y = deltaPoint.height + (0 < deltaPoint.height ? -1 : 1) * CGFloat(context.height)
+        
+        canvasView.spriteCopy.draw(at: CGPoint(x: x, y: deltaPoint.height))
+        canvasView.spriteCopy.draw(at: CGPoint(x: deltaPoint.width, y: y))
         canvasView.spriteCopy.draw(at: CGPoint(x: x, y: y))
+    }
+    
+    func archivedMove(deltaPoint: CGSize) {
+        canvasView.spriteCopy = UIImage(cgImage: context.makeImage()!)
+        move(deltaPoint: deltaPoint)
+        
+        undoManager?.registerUndo(withTarget: self) { (target) in
+            target.archivedMove(deltaPoint: CGSize(width: -deltaPoint.width, height: -deltaPoint.height))
+        }
     }
     
     public func highlight(at point: PixelPoint, size: PixelSize) {
         for xOffset in 0..<size.width {
             for yOffset in 0..<size.height {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
-                guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
+                guard !currentOperationPixelPoints.keys.contains(brushPoint) else { continue }
                 let highlightComponents = (palette ?? Palette.defaultPalette).highlight(forColorComponents: getColorComponents(at: brushPoint))
                 brushPaint(colorComponents: highlightComponents, at: brushPoint, size: PixelSize(width: 1, height: 1))
             }
@@ -260,7 +271,7 @@ public class DocumentController {
         for xOffset in 0..<size.width {
             for yOffset in 0..<size.height {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
-                guard !currentOperationPixelPoints.contains(brushPoint) else { continue }
+                guard !currentOperationPixelPoints.keys.contains(brushPoint) else { continue }
                 let shadowComponents = (palette ?? Palette.defaultPalette).shadow(forColorComponents: getColorComponents(at: brushPoint))
                 brushPaint(colorComponents: shadowComponents, at: brushPoint, size: PixelSize(width: 1, height: 1))
             }
@@ -271,27 +282,18 @@ public class DocumentController {
         fillFromColorComponents = getColorComponents(at: startPoint)
         guard fillFromColorComponents != toolColorComponents else { return }
         
-        undoManager?.registerUndo(withTarget: self, handler: { (target) in
-            target.currentOperationPixelPoints.removeAll()
-            target.refresh()
-        })
-        
         let maxCheckedPixels = 2048
         var stack = [startPoint]
         var checkedPixels = 0
         while checkedPixels < maxCheckedPixels {
             guard let pixelPoint = stack.popLast() else { return }
-            if currentOperationPixelPoints.contains(pixelPoint) || (pixelPoint.y < 0 || pixelPoint.y > context.height - 1 || pixelPoint.x < 0 || pixelPoint.x > context.width - 1) {
+            if currentOperationPixelPoints.keys.contains(pixelPoint) || (pixelPoint.y < 0 || pixelPoint.y > context.height - 1 || pixelPoint.x < 0 || pixelPoint.x > context.width - 1) {
                 continue
             }
             guard getColorComponents(at: pixelPoint) == fillFromColorComponents else { continue }
             
-            undoManager?.registerUndo(withTarget: self, handler: { (target) in
-                target.simplePaint(colorComponents: self.fillFromColorComponents!, at: pixelPoint)
-            })
             simplePaint(colorComponents: toolColorComponents, at: pixelPoint)
-            
-            currentOperationPixelPoints.insert(pixelPoint)
+            currentOperationPixelPoints[pixelPoint] = fillFromColorComponents
             
             stack += [
                 PixelPoint(x: pixelPoint.x+1, y: pixelPoint.y),

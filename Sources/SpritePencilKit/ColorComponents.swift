@@ -78,6 +78,6 @@ public struct ColorComponents: Equatable {
     }
     
     public static func ==(left: ColorComponents, right: ColorComponents) -> Bool {
-        return left.red == right.red && left.green == right.green && left.blue == right.blue && left.opacity == right.opacity
+        return (left.opacity == 0 || (left.red == right.red && left.green == right.green && left.blue == right.blue)) && left.opacity == right.opacity
     }
 }
