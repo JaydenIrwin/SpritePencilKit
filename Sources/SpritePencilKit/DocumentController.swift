@@ -261,7 +261,7 @@ public class DocumentController {
             for yOffset in 0..<size.height {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.keys.contains(brushPoint) else { continue }
-                let highlightComponents = (palette ?? Palette.defaultPalette).highlight(forColorComponents: getColorComponents(at: brushPoint))
+                let highlightComponents = (palette ?? Palette.sp16).highlight(forColorComponents: getColorComponents(at: brushPoint))
                 brushPaint(colorComponents: highlightComponents, at: brushPoint, size: PixelSize(width: 1, height: 1))
             }
         }
@@ -272,7 +272,7 @@ public class DocumentController {
             for yOffset in 0..<size.height {
                 let brushPoint = PixelPoint(x: point.x + xOffset, y: point.y + yOffset)
                 guard !currentOperationPixelPoints.keys.contains(brushPoint) else { continue }
-                let shadowComponents = (palette ?? Palette.defaultPalette).shadow(forColorComponents: getColorComponents(at: brushPoint))
+                let shadowComponents = (palette ?? Palette.sp16).shadow(forColorComponents: getColorComponents(at: brushPoint))
                 brushPaint(colorComponents: shadowComponents, at: brushPoint, size: PixelSize(width: 1, height: 1))
             }
         }
@@ -422,7 +422,7 @@ public class DocumentController {
         } else {
             // Automatic color
             for point in outline {
-                let shadowColor = (palette ?? Palette.defaultPalette).shadow(forColorComponents: point.neighborColorComponents)
+                let shadowColor = (palette ?? Palette.sp16).shadow(forColorComponents: point.neighborColorComponents)
                 undoManager?.registerUndo(withTarget: self, handler: { (target) in
                     target.simplePaint(colorComponents: .clear, at: point.point)
                 })

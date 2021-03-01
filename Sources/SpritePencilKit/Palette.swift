@@ -8,7 +8,7 @@
 
 import UIKit
 
-public struct Palette: Equatable {
+public class Palette: Equatable {
     
     public enum SpecialCase {
         case rrggbb, hhhhssbb, rrrgggbb
@@ -22,7 +22,7 @@ public struct Palette: Equatable {
             (89, 87, 214),(255, 128, 198),(230, 185, 140),(140, 90, 40)
         ]
         return rgb.map({ ColorComponents(red: $0.r, green: $0.g, blue: $0.b, opacity: 255) })
-    }())
+    }(), defaultGroupLength: 1)
     public static let rrggbb = Palette(name: "RRGGBB", specialCase: .rrggbb, colors: {
         var colors = [ColorComponents]()
         for red in 0..<4 {
@@ -41,7 +41,7 @@ public struct Palette: Equatable {
             //                }
         //            }
         return colors
-    }())
+    }(), defaultGroupLength: 8)
     public static let hhhhssbb = Palette(name: "HHHHSSBB", specialCase: .hhhhssbb, colors: {
         var colors = [UIColor]()
         for saturation in stride(from: CGFloat(1.0), to: 0.33333, by: -0.33333) {
@@ -62,7 +62,7 @@ public struct Palette: Equatable {
             color.getRed(&red, green: &green, blue: &blue, alpha: &opacity)
             return ColorComponents(red: UInt8(red*255), green: UInt8(green*255), blue: UInt8(blue*255), opacity: 255)
         })
-    }())
+    }(), defaultGroupLength: 8)
     public static let rrrgggbb = Palette(name: "RRRGGGBB", specialCase: .rrrgggbb, colors: {
         var colors = [ColorComponents]()
         for red in 0..<8 {
@@ -81,14 +81,7 @@ public struct Palette: Equatable {
             //                }
         //            }
         return colors
-    }())
-    
-    public static var appPalettes = [Palette]()
-    public static var userPalettes = [Palette]()
-    public static var palettes: [Palette] {
-        return userPalettes + appPalettes + [Palette.sp16, Palette.rrggbb, Palette.hhhhssbb, Palette.rrrgggbb]
-    }
-    public static var defaultPalette = Palette.sp16
+    }(), defaultGroupLength: 8)
     
     public static func ==(_ lhs: Palette, _ rhs: Palette) -> Bool {
         return lhs.name == rhs.name
@@ -97,17 +90,23 @@ public struct Palette: Equatable {
     public var name: String
     public let specialCase: SpecialCase?
     public let colors: [ColorComponents]
+    public let defaultGroupLength: Int
+    public let groupLengths: [Int]
     
-    public init(name: String, specialCase: SpecialCase?, colors: [ColorComponents]) {
+    public init(name: String, specialCase: SpecialCase?, colors: [ColorComponents], defaultGroupLength: Int, groupLengths: [Int] = []) {
         self.name = name
         self.specialCase = specialCase
         self.colors = colors
+        self.defaultGroupLength = defaultGroupLength
+        self.groupLengths = groupLengths
     }
     
-    public init?(name: String, image: UIImage) {
+    public init?(name: String, image: UIImage, defaultGroupLength: Int, groupLengths: [Int] = []) {
         guard image.size.height == 1 else { return nil }
         self.name = name
         self.specialCase = nil
+        self.defaultGroupLength = defaultGroupLength
+        self.groupLengths = groupLengths
         
         UIGraphicsBeginImageContext(image.size)
         image.draw(at: .zero)
