@@ -301,7 +301,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         if documentController.verticalSymmetry {
             if verticalSymmetryLineLayer == nil {
                 verticalSymmetryLineLayer = CALayer()
-                verticalSymmetryLineLayer?.frame = CGRect(x: 0, y: (CGFloat(documentHeight) * spriteZoomScale/2.0) - 0.1, width: CGFloat(documentWidth) * spriteZoomScale, height: 0.2)
+                verticalSymmetryLineLayer?.frame = CGRect(x: (CGFloat(documentWidth) * spriteZoomScale/2.0) - 0.1, y: 0, width: 0.2, height: CGFloat(documentHeight) * spriteZoomScale)
                 verticalSymmetryLineLayer?.borderWidth = 0.2
                 verticalSymmetryLineLayer?.borderColor = tintColor.cgColor
                 spriteView.layer.addSublayer(verticalSymmetryLineLayer!)
@@ -313,7 +313,7 @@ public class CanvasView: UIScrollView, UIGestureRecognizerDelegate, UIScrollView
         if documentController.horizontalSymmetry {
             if horizontalSymmetryLineLayer == nil {
                 horizontalSymmetryLineLayer = CALayer()
-                horizontalSymmetryLineLayer?.frame = CGRect(x: (CGFloat(documentWidth) * spriteZoomScale/2.0) - 0.1, y: 0, width: 0.2, height: CGFloat(documentHeight) * spriteZoomScale)
+                horizontalSymmetryLineLayer?.frame = CGRect(x: 0, y: (CGFloat(documentHeight) * spriteZoomScale/2.0) - 0.1, width: CGFloat(documentWidth) * spriteZoomScale, height: 0.2)
                 horizontalSymmetryLineLayer?.borderWidth = 0.2
                 horizontalSymmetryLineLayer?.borderColor = tintColor.cgColor
                 spriteView.layer.addSublayer(horizontalSymmetryLineLayer!)

@@ -9,18 +9,18 @@
 import UIKit
 import CoreImage.CIFilterBuiltins
 
-public protocol ToolDelegate: class {
+public protocol ToolDelegate: AnyObject {
     func selectTool(_ tool: Tool)
 }
-public protocol EditorDelegate: class {
+public protocol EditorDelegate: AnyObject {
     var hoverPoint: PixelPoint? { get set }
     func eyedropColor(colorComponents components: ColorComponents, at point: PixelPoint)
     func refreshUndo()
 }
-public protocol RecentColorDelegate: class {
+public protocol RecentColorDelegate: AnyObject {
     func usedColor(components: ColorComponents)
 }
-public protocol PaintParticlesDelegate: class {
+public protocol PaintParticlesDelegate: AnyObject {
     func painted(context: CGContext, color: UIColor?, at point: PixelPoint)
 }
 
@@ -175,20 +175,20 @@ public class DocumentController {
                 if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
                     simplePaint(colorComponents: colorComponents, at: brushPoint)
                 }
-                if verticalSymmetry {
+                if horizontalSymmetry {
                     let mirroredY = context.height - brushPoint.y - 1
                     let brushPoint = PixelPoint(x: brushPoint.x, y: mirroredY)
                     if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
                         simplePaint(colorComponents: colorComponents, at: brushPoint)
                     }
-                    if horizontalSymmetry {
+                    if verticalSymmetry {
                         let brushPoint = PixelPoint(x: context.width - brushPoint.x - 1, y: mirroredY)
                         if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
                             simplePaint(colorComponents: colorComponents, at: brushPoint)
                         }
                     }
                 }
-                if horizontalSymmetry {
+                if verticalSymmetry {
                     let brushPoint = PixelPoint(x: context.width - brushPoint.x - 1, y: brushPoint.y)
                     if !checkeredDrawingMode || (brushPoint.x % 2 != brushPoint.y % 2) {
                         simplePaint(colorComponents: colorComponents, at: brushPoint)
